@@ -428,7 +428,7 @@ function showKeyGate(msg){
     ${msg?`<p class="red">${esc(msg)}</p>`:''}
     <input name="k" type="password" autocomplete="off" required placeholder="Mã truy cập" style="letter-spacing:normal;font-size:16px">
     <button class="btn-lime" style="width:100%;justify-content:center">Mở</button></form>`;
-  d.querySelector('form').onsubmit=e=>{ e.preventDefault(); const v=e.target.k.value.trim();
+  d.querySelector('form').onsubmit=e=>{ e.preventDefault(); const v=e.target.k.value.replace(/[^a-f0-9]/gi,'').toLowerCase(); // bỏ dấu cách, ký tự ẩn khi copy
     try{localStorage.setItem('cv_key',v)}catch(_){} d.remove(); load(true); };
   document.body.appendChild(d);
 }
