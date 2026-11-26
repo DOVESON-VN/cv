@@ -4,8 +4,15 @@
 <base target="_top">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#090806">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DOVESON">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CV – DOVESON</title>
+<title>DOVESON</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -30,8 +37,10 @@ svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .app{display:grid;grid-template-columns:218px 1fr;min-height:100vh}
 .side{position:sticky;top:0;height:100vh;border-right:1px solid var(--line2);background:rgba(9,8,6,.92);
   display:flex;flex-direction:column;padding:26px 12px 22px;z-index:5}
-.logo{font-weight:800;font-size:40px;letter-spacing:-.02em;padding:0 20px 34px;line-height:1}
-.logo i{display:inline-block;width:36px;height:5px;background:var(--gold-grad);margin-left:10px;vertical-align:0}
+.brand{background:url(data:image/png;base64,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) center/contain no-repeat}
+.logo{display:flex;align-items:center;gap:12px;padding:0 16px 30px}
+.logo .brand{width:52px;height:52px;flex:none}
+.logo b{font-weight:800;font-size:19px;letter-spacing:.06em;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .nav{display:flex;flex-direction:column;gap:6px}
 .nav button{display:flex;align-items:center;gap:16px;padding:13px 20px;border-radius:10px;border:1px solid transparent;color:#d6dadd;font-size:16px;text-align:left}
 .nav button:hover{background:rgba(255,255,255,.04)}
@@ -260,14 +269,14 @@ dialog h3{margin:0 0 16px;font-size:20px}
 
 /* ---------- responsive ---------- */
 @media (max-width:1250px){
-  .ov{grid-template-columns:1fr}
+  .ov{grid-template-columns:minmax(0,1fr)}
   .rightcol{margin-top:0;display:grid;grid-template-columns:1fr 1fr}
   .prog{border-bottom:0;border-right:1px solid var(--line)}
 }
 @media (max-width:900px){
   .app{grid-template-columns:1fr}
   .side{position:fixed;top:auto;bottom:0;left:0;right:0;height:auto;flex-direction:row;padding:6px;border-right:0;border-top:1px solid var(--line)}
-  .logo,.nav .sep,.nav .lbl{display:none}
+  .logo,.nav .sep,.nav .lbl,.nav .m-hide{display:none}
   .nav{flex-direction:row;justify-content:space-around;width:100%}
   .nav button{flex-direction:column;gap:3px;padding:8px 6px;font-size:10.5px}
   .side .bottom{display:none}
@@ -314,7 +323,7 @@ dialog h3{margin:0 0 16px;font-size:20px}
 
 <div class="app">
   <aside class="side">
-    <div class="logo">CV<i></i></div>
+    <div class="logo"><span class="brand" role="img" aria-label="DOVESON"></span><b>DOVESON</b></div>
     <nav class="nav" id="nav"></nav>
     <div class="nav bottom" id="navBottom"></div>
   </aside>
@@ -333,7 +342,7 @@ dialog h3{margin:0 0 16px;font-size:20px}
           <input id="q" placeholder="Tìm kiếm công việc, dự án, tài liệu…" autocomplete="off"></label>
         <span class="vsep"></span>
         <button class="bell" id="bell" title="Việc quá hạn & chờ duyệt"><svg class="i" viewBox="0 0 24 24" style="width:26px;height:26px"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellDot" hidden></b></button>
-        <button class="avatar" title="Cài đặt" data-act="go" data-v="settings">DV</button>
+        <button class="avatar" title="Cài đặt" data-act="go" data-v="settings"><span class="brand" style="width:70%;height:70%"></span></button>
       </header>
       <div id="errors"></div>
       <main id="view"><div class="loading">Đang tải dữ liệu…</div></main>
@@ -384,12 +393,13 @@ const ICON={
   check:'<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.8"/>',
   date:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
   wallet:'<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v4"/><rect x="3.5" y="7.5" width="17" height="12" rx="2.5"/><path d="M16 13.5h2"/>',
   lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
 };
 const ico=(n,s)=>`<svg class="i" viewBox="0 0 24 24"${s?` style="width:${s}px;height:${s}px"`:''}>${ICON[n]}</svg>`;
-const VIEWS=[['overview','Tổng quan','home'],['tasks','Công việc','tasks'],['projects','Dự án','proj'],['calendar','Lịch','cal'],['docs','Tài liệu','docs'],['reports','Báo cáo','report'],['finance','Tài chính','wallet']];
+const VIEWS=[['overview','Tổng quan','home'],['cbbs','CBBS','tasks'],['doveson','DOVESON','user'],['projects','Dự án','proj'],['calendar','Lịch','cal'],['docs','Tài liệu','docs'],['reports','Báo cáo','report'],['finance','Tài chính','wallet']];
 
 let DATA=null, BYID={};
 const S={view:lsGet('view')||'overview', src:lsGet('src')||'all', ttab:'todo', month:'', q:'', day:null, calYM:null, open:null};
@@ -446,6 +456,7 @@ const TODAY=()=>toNum(DATA.today);
 
 const isDone=t=>DONE_RE.test(t.status), isCancel=t=>CANCEL_RE.test(t.status);
 function approval(t){ if(t.duyet==='Đã duyệt')return'approved'; if(t.duyet==='Cần sửa')return'fix';
+  if(t.src==='cbb'&&isDone(t)) return'approved'; // việc công ty: DONE là hoàn thành luôn
   if(isDone(t)||REVIEW_RE.test(t.status))return'pending'; return null;}
 const isOpen=t=>!isDone(t)&&!REVIEW_RE.test(t.status);
 const dueN=t=>toNum(t.deadline)||toNum(t.ngayLam);
@@ -454,7 +465,8 @@ const prRank=p=>{const m=String(p).match(/P(\d)/i);return m?+m[1]:9};
 
 function rows(useQ){
   const q=(useQ&&S.q||'').toLowerCase().normalize('NFC');
-  return DATA.rows.filter(t=>!isCancel(t)&&(S.src==='all'||t.src===S.src)&&
+  const src=S.forceSrc||S.src;
+  return DATA.rows.filter(t=>!isCancel(t)&&(src==='all'||t.src===src)&&
     (!q||[t.task,t.ma,t.khach,t.duAn,t.nhom,t.note,t.feedback].join(' ').toLowerCase().includes(q)));
 }
 function groups(list){
@@ -585,7 +597,7 @@ function vOverview(){
 function vTasks(){
   const g=groups(rows(true));
   const tabs=[['todo','Cần làm',g.overdue.length+g.today.length+g.soon.length+g.later.length+g.nodate.length],['pending','Chờ duyệt',g.pending.length],
-    ['fix','Cần sửa',g.fix.length],['approved','Đã duyệt',g.approved.length]];
+    ['fix','Cần sửa',g.fix.length],['approved','Hoàn thành',g.approved.length]];
   let body='';
   const mf=l=>S.month?l.filter(t=>t.thang===S.month):l;
   if(S.ttab==='todo'){
@@ -598,7 +610,7 @@ function vTasks(){
       ${S.ttab==='pending'&&l.length?`<button class="btn-line ok" data-act="bulk">✓ Duyệt tất cả ${l.length} file đang hiển thị</button>`:''}</div>
       <section class="panel list">${table(l,S.ttab==='pending'?'Không còn file nào chờ duyệt ✨':'Trống')}</section>`;
   }
-  return `<div class="page"><div class="page-h"><div><h1>Công việc</h1><p>${S.q?`Kết quả tìm “${esc(S.q)}”`:SRC_NAME[S.src]}</p></div>
+  return `<div class="page"><div class="page-h"><div><h1>${S.forceSrc==='cbb'?'CBBS':S.forceSrc==='personal'?'DOVESON':'Công việc'}</h1><p>${S.q?`Kết quả tìm “${esc(S.q)}”`:S.forceSrc==='cbb'?'Việc công ty – Chuyện Ba Bữa':S.forceSrc==='personal'?'Việc cá nhân & khách ngoài':SRC_NAME[S.src]}</p></div>
     <button class="btn-lime" data-act="add">${ico('plus',16)}Thêm công việc</button></div>
     <div class="toolbar tabs">${tabs.map(([k,l,n])=>`<button class="${S.ttab===k?'on':''}" data-act="ttab" data-v="${k}">${l}<b>${n}</b></button>`).join('')}</div>${body}</div>`;
 }
@@ -687,17 +699,23 @@ async function finLoad(){
 }
 function finCalc(){
   const d=F.data, ym=F.ym||Math.floor(TODAY()/100);
-  const tx=d.tx.filter(t=>num(t['Số tiền'])>0&&(t['Loại']==='Thu'||t['Loại']==='Chi'));
+  // bỏ các giao dịch "Lương MM/YYYY" do bản cũ tự tạo – lương giờ được tính thẳng từ tab LUONG
+  const tx=d.tx.filter(t=>num(t['Số tiền'])>0&&(t['Loại']==='Thu'||t['Loại']==='Chi')
+    &&!(t['Danh mục']==='Lương'&&/^Lương \d{2}\/\d{4}$/.test(String(t['Ghi chú']||''))));
+  const salAll=d.salary.filter(x=>x['Tháng']).map(x=>({ym:monthOf(x['Tháng']),got:!!x['Ngày nhận'],acc:x['Tài khoản nhận']||'Ngân hàng',
+    net:num(x['Thực nhận'])||(num(x['Lương cơ bản'])+num(x['Thưởng/Phụ cấp'])-num(x['Khấu trừ']))}));
+  const salOf=k=>salAll.filter(x=>x.ym===k).reduce((s,x)=>s+x.net,0);
   const inM=tx.filter(t=>monthOf(t['Ngày'])===ym);
   const sum=(l,k)=>l.filter(t=>t['Loại']===k).reduce((s,t)=>s+num(t['Số tiền']),0);
-  const thu=sum(inM,'Thu'), chi=sum(inM,'Chi');
+  const luong=salOf(ym), thu=sum(inM,'Thu')+luong, chi=sum(inM,'Chi');
   const acc={}; d.accounts.forEach(a=>{ if(a['Tài khoản']) acc[a['Tài khoản']]=num(a['Số dư đầu']); });
   tx.forEach(t=>{const k=t['Tài khoản']||'Tiền mặt'; acc[k]=(acc[k]||0)+(t['Loại']==='Thu'?1:-1)*num(t['Số tiền']);});
+  salAll.filter(x=>x.got).forEach(x=>{acc[x.acc]=(acc[x.acc]||0)+x.net;}); // lương đã nhận vào số dư
   const total=Object.values(acc).reduce((a,b)=>a+b,0);
   const cats={}; inM.filter(t=>t['Loại']==='Chi').forEach(t=>{const k=t['Danh mục']||'Khác'; cats[k]=(cats[k]||0)+num(t['Số tiền']);});
   const budget={}; d.budget.forEach(b=>{ if(b['Danh mục']) budget[b['Danh mục']]=num(b['Hạn mức tháng']); });
   const months=[]; for(let i=5;i>=0;i--){const x=new Date(Math.floor(ym/100),ym%100-1-i,1); const k=x.getFullYear()*100+x.getMonth()+1;
-    const l=tx.filter(t=>monthOf(t['Ngày'])===k); months.push({k,thu:sum(l,'Thu'),chi:sum(l,'Chi')});}
+    const l=tx.filter(t=>monthOf(t['Ngày'])===k); months.push({k,thu:sum(l,'Thu')+salOf(k),chi:sum(l,'Chi')});}
   const debts=d.debts.filter(x=>x['Người']).map(x=>Object.assign({},x,{con:num(x['Số tiền'])-num(x['Đã trả'])}));
   const owedMe=debts.filter(x=>x['Chiều']===d.lists.debtDirs[0]).reduce((s,x)=>s+Math.max(0,x.con),0);
   const iOwe=debts.filter(x=>x['Chiều']===d.lists.debtDirs[1]).reduce((s,x)=>s+Math.max(0,x.con),0);
@@ -709,7 +727,7 @@ function finCalc(){
     const k=t.khach||'(chưa ghi khách)', g=tdMap[k]=tdMap[k]||{khach:t.khach||'',name:k,tasks:[],con:0,next:null};
     g.tasks.push(t); g.con+=(t.baoGia||0)-(t.daThu||0); const n=dueN(t); if(n&&(!g.next||n<g.next)) g.next=n; });
   const taskDebts=Object.values(tdMap).sort((a,b)=>b.con-a.con);
-  return {ym,tx,inM,thu,chi,acc,total,cats,budget,months,debts,owedMe,iOwe,freelance,sal,taskDebts};
+  return {ym,tx,inM,thu,chi,luong,acc,total,cats,budget,months,debts,owedMe,iOwe,freelance,sal,taskDebts};
 }
 function vFinance(){
   if(!F.status){ finInit(); return `<div class="loading">Đang kiểm tra bảo mật…</div>`; }
@@ -742,7 +760,7 @@ function vFinance(){
     const mx=Math.max(1,...c.months.map(m=>Math.max(m.thu,m.chi)));
     body=`<div class="kpis6">
       <div class="panel kpi gold"><b>${fm(c.total)}</b><span>Tổng số dư các tài khoản</span></div>
-      <div class="panel kpi pos"><b>${fm(c.thu)}</b><span>Thu ${ymLabel(c.ym).toLowerCase()}</span></div>
+      <div class="panel kpi pos"><b>${fm(c.thu)}</b><span>Thu ${ymLabel(c.ym).toLowerCase()}${c.luong?` (gồm ${fm(c.luong)} lương)`:''}</span></div>
       <div class="panel kpi"><b>${fm(c.chi)}</b><span>Chi ${ymLabel(c.ym).toLowerCase()}</span></div>
       <div class="panel kpi ${net>=0?'pos':'neg'}"><b>${net>=0?'+':''}${fm(net)}</b><span>Còn lại trong tháng</span></div>
       <div class="panel kpi"><b>${fm(c.owedMe+c.freelance)}</b><span>Người khác nợ mình (gồm ${fm(c.freelance)} tiền việc ngoài)</span></div>
@@ -816,7 +834,7 @@ function finDialog(kind,row,khach){
   if(kind==='recv'){ const x=finCalc().sal.find(s=>s.row===row); title=`Nhận lương ${x?ymLabel(x.ym):''}`;
     inner=`<input type="hidden" name="row" value="${row}"><input type="hidden" name="thang" value="${esc(x['Tháng'])}">
       <p class="full" style="margin:0">Thực nhận: <b class="amt in">${money(x.net)}</b></p>${accSel.replace('<option>Ngân hàng</option>','<option selected>Ngân hàng</option>')}
-      <p class="full" style="color:var(--muted);font-size:13px;margin:0">App sẽ tự ghi 1 khoản thu "Lương" vào Giao dịch.</p>`; }
+      <p class="full" style="color:var(--muted);font-size:13px;margin:0">Lương đã được tính vào thu nhập tháng; bấm Lưu để cộng vào số dư tài khoản này.</p>`; }
   f.dataset.kind=kind;
   f.innerHTML=`<h3>${esc(title)}</h3><div class="fgrid">${inner}</div><div class="fbtns"><button class="btn-line" value="cancel" formnovalidate>Huỷ</button><button class="btn-lime" value="save">Lưu</button></div>`;
   document.getElementById('fdlg').showModal(); const first=f.querySelector('input:not([type=hidden]),select'); if(first) first.focus();
@@ -853,11 +871,12 @@ function render(){
   document.getElementById('wsLabel').textContent=SRC_NAME[S.src];
   const cnt=s=>DATA.rows.filter(t=>!isCancel(t)&&isOpen(t)&&(s==='all'||t.src===s)).length;
   document.getElementById('wsMenu').innerHTML=['all','cbb','personal'].map(k=>`<button class="${S.src===k?'on':''}" data-act="src" data-v="${k}">${k==='all'?'Tất cả':SRC_NAME[k]}<small>${cnt(k)} việc mở</small></button>`).join('');
-  document.getElementById('nav').innerHTML=VIEWS.map(([k,l,i])=>`<button class="${S.view===k?'on':''}" data-act="go" data-v="${k}">${ico(i,22)}<span class="lbl2">${l}</span></button>`).join('')+'<div class="sep"></div>';
+  document.getElementById('nav').innerHTML=VIEWS.map(([k,l,i])=>`<button class="${S.view===k?'on':''} ${['projects','docs','reports'].includes(k)?'m-hide':''}" data-act="go" data-v="${k}">${ico(i,22)}<span class="lbl2">${l}</span></button>`).join('')+'<div class="sep"></div>';
   document.getElementById('navBottom').innerHTML=`<button class="${S.view==='settings'?'on':''}" data-act="go" data-v="settings">${ico('gear',22)}<span>Cài đặt</span></button>`;
   const g=groups(rows()); document.getElementById('bellDot').hidden=!(g.overdue.length||g.pending.length);
   document.getElementById('errors').innerHTML=DATA.errors.length?`<div class="errors">${DATA.errors.map(esc).join('<br>')}</div>`:'';
-  const V={finance:vFinance,overview:vOverview,tasks:vTasks,projects:vProjects,calendar:vCalendar,docs:vDocs,reports:vReports,settings:vSettings}[S.view]||vOverview;
+  S.forceSrc=S.view==='cbbs'?'cbb':S.view==='doveson'?'personal':null;
+  const V={finance:vFinance,overview:vOverview,tasks:vTasks,cbbs:vTasks,doveson:vTasks,projects:vProjects,calendar:vCalendar,docs:vDocs,reports:vReports,settings:vSettings}[S.view]||vOverview;
   document.getElementById('view').innerHTML=V();
   document.getElementById('heroBg').style.display=S.view==='overview'?'':'none';
   const u=f=>[...new Set(DATA.rows.filter(t=>t.src==='personal').map(f).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
@@ -880,9 +899,9 @@ async function toggleDone(t){
   const done=isDone(t)||approval(t)==='approved';
   if(done&&t.duyet==='Đã duyệt'){ if(!confirm('Việc này đã được duyệt. Bỏ duyệt và mở lại?')) return; await approve([t],''); }
   const to=done?'TODO':'DONE';
-  if(!done&&!confirm(`Đánh dấu hoàn thành: “${t.task}”?\n(Status trong sheet sẽ đổi thành DONE và việc chuyển sang Chờ duyệt)`)) return;
+  if(!done&&!confirm(`Đánh dấu hoàn thành: “${t.task}”?\n(Status trong sheet sẽ đổi thành DONE)`)) return;
   const old=t.status; t.status=to; render();
-  try{ await call('setStatus',{src:t.src,row:t.row,key:t.key},to); toast(to==='DONE'?'Đã hoàn thành → chờ duyệt':'Đã mở lại việc'); }
+  try{ await call('setStatus',{src:t.src,row:t.row,key:t.key},to); toast(to==='DONE'?(t.src==='cbb'?'Đã hoàn thành':'Đã hoàn thành → chờ khách duyệt'):'Đã mở lại việc'); }
   catch(e){ t.status=old; render(); toast('Lỗi: '+(e.message||e)); }
 }
 function closePop(){document.querySelectorAll('.pop').forEach(p=>p.remove());}
@@ -993,7 +1012,8 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
       for(const r of l){ if(remain<=0) break; const pay=Math.min(remain,r.baoGia-r.daThu); r.daThu+=pay; remain-=pay; n++; }
       FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':'Thu','Số tiền':+x.soTien,'Danh mục':'Freelance','Tài khoản':x.taiKhoan,'Đối tượng':x.khach,'Ghi chú':'Thu tiền task'});
       return {paid:+x.soTien,tasks:n,remaining:0}; },
-    receiveSalary:(p,x)=>{const r=FD.data.salary.find(s=>s.row===x.row);r['Ngày nhận']=f(0);r['Tài khoản nhận']=x.taiKhoan;
+    receiveSalary:(p,x)=>{const r=FD.data.salary.find(s=>s.row===x.row);r['Ngày nhận']=f(0);r['Tài khoản nhận']=x.taiKhoan;return 1;
+      if(0)
       FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':'Thu','Số tiền':r['Thực nhận'],'Danh mục':'Lương','Tài khoản':x.taiKhoan,'Đối tượng':r['Nguồn'],'Ghi chú':'Lương '+r['Tháng']});return 1;},
   };
   var FD={pin:null,data:{url:'#',warnings:[],
