@@ -213,7 +213,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .bigcal .wd{color:var(--muted);font-size:13px;padding:4px 8px}
 .bigcal .day{min-height:96px;padding:8px;border-radius:10px;border:1px solid var(--line2);background:rgba(16,14,11,.5);text-align:left;display:flex;flex-direction:column;gap:4px;overflow:hidden}
 .bigcal .day.out{opacity:.25}
-.bigcal .day.today{border-color:var(--lime)}
+.bigcal .day.is-today{border-color:var(--lime)}
+.bigcal .day.sel{background:var(--lime-soft);border-color:var(--lime);box-shadow:inset 0 0 0 1px var(--lime)}
+.bigcal .evdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#9fc0dc;vertical-align:middle}
+.ev.me{background:var(--lime-soft)}
 .bigcal .day b{font-size:13px}
 .bigcal .chip{font-size:11.5px;padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.07);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bigcal .chip.cbb{border-left:2px solid var(--cbb)} .bigcal .chip.personal{border-left:2px solid var(--me)}
@@ -464,6 +467,7 @@ const linkify=s=>esc(s).replace(/https?:\/\/[^\s<]+/g,u=>{const raw=u.replace(/&
 const TODAY=()=>toNum(DATA.today);
 
 const isDone=t=>DONE_RE.test(t.status), isCancel=t=>CANCEL_RE.test(t.status);
+const evToday=()=>DATA.events.filter(e=>toNum(e.day)===TODAY());
 function approval(t){ if(t.duyet==='Đã duyệt')return'approved'; if(t.duyet==='Cần sửa')return'fix';
   if(t.src==='cbb'&&isDone(t)) return'approved'; // việc công ty: DONE là hoàn thành luôn
   if(isDone(t)||REVIEW_RE.test(t.status))return'pending'; return null;}
@@ -591,7 +595,7 @@ function vOverview(){
     if(all.length>8||g.later.length||g.nodate.length) more=`<button class="more-link" data-act="go" data-v="tasks">Xem tất cả ${all.length+g.later.length+g.nodate.length} việc đang mở →</button>`; }
   return `<div class="ov"><div>
     <section class="hero"><h1>Kiểm soát<br>mọi đầu <em>việc.</em></h1><p>Tập trung vào điều quan trọng.</p><div class="bar"></div>
-      <div class="live">Hôm nay: <b>${g.today.length}</b> việc · <b style="color:${g.overdue.length?'var(--red)':'inherit'}">${g.overdue.length}</b> quá hạn · <b>${g.pending.length}</b> file chờ duyệt${DATA.events.length?` · <b>${DATA.events.length}</b> lịch hẹn`:''}</div></section>
+      <div class="live">Hôm nay: <b>${g.today.length}</b> việc · <b style="color:${g.overdue.length?'var(--red)':'inherit'}">${g.overdue.length}</b> quá hạn · <b>${g.pending.length}</b> file chờ duyệt${evToday().length?` · <b>${evToday().length}</b> lịch hẹn`:''}</div></section>
     <div class="stats">
       <button class="stat" data-act="go" data-v="tasks" data-t="todo"><div class="h">${ico('play',22)}Đang thực hiện</div><div class="n">${String(st.doing).padStart(2,'0')}</div></button>
       <button class="stat" data-act="go" data-v="tasks" data-t="pending"><div class="h">${ico('clock',22)}Chờ xử lý</div><div class="n">${String(st.pend).padStart(2,'0')}</div></button>
@@ -640,20 +644,33 @@ function vProjects(){
 
 function vCalendar(){
   const td=TODAY(); if(!S.calYM) S.calYM=Math.floor(td/100);
+  const sel=S.calDay||td;
   const y=Math.floor(S.calYM/100), m=S.calYM%100, first=new Date(y,m-1,1), lead=(first.getDay()+6)%7, map=dayMap(rows());
+  const evDay=n=>DATA.events.filter(e=>toNum(e.day)===n);
   let cells=''; const start=addD(dn(first),-lead);
-  for(let i=0;i<42;i++){const n=addD(start,i), inM=Math.floor(n/100)===S.calYM, l=(map[n]||[]);
+  for(let i=0;i<42;i++){const n=addD(start,i), inM=Math.floor(n/100)===S.calYM, l=(map[n]||[]), ne=evDay(n).length;
     if(i>=35&&!inM&&i%7===0) break;
-    cells+=`<button class="day ${inM?'':'out'} ${n===td?'today':''}" data-act="day" data-n="${n}"><b>${n%100}</b>${l.slice(0,3).map(t=>`<span class="chip ${t.src} ${isLate(t)?'late':''}">${esc(t.task)}</span>`).join('')}${l.length>3?`<span class="chip">+${l.length-3}</span>`:''}</button>`;}
-  const ev=DATA.events.length?DATA.events.map(e=>`<div class="ev"><time>${e.allDay?'Cả ngày':esc(e.start)+' – '+esc(e.end)}</time><div>${linkify(e.title)}${e.where?`<br><small>📍 ${linkify(e.where)}</small>`:''}<br><small>${esc(e.cal)}</small></div></div>`).join(''):'<div class="empty">Không có lịch hẹn hôm nay</div>';
-  const by={}; DATA.team.forEach(x=>(by[x.person]=by[x.person]||[]).push(x));
-  const team=Object.keys(by).length?Object.entries(by).map(([p,l])=>`<div class="ev"><time style="color:var(--ink)">${esc(p)}</time><div>${l.map(x=>`<small>${esc(x.kenh)}</small> ${linkify(x.text)}`).join('<br>')}</div></div>`).join(''):'<div class="empty">Lịch team hôm nay trống</div>';
+    cells+=`<button class="day ${inM?'':'out'} ${n===td?'is-today':''} ${n===sel?'sel':''}" data-act="cday" data-n="${n}"><b>${n%100}${ne?` <i class="evdot" title="${ne} lịch hẹn"></i>`:''}</b>${l.slice(0,3).map(t=>`<span class="chip ${t.src} ${isLate(t)?'late':''}">${esc(t.task)}</span>`).join('')}${l.length>3?`<span class="chip">+${l.length-3}</span>`:''}</button>`;}
+
+  // ---- chi tiết ngày được chọn ----
+  const onDay=t=>toNum(t.deadline)===sel||toNum(t.ngayLam)===sel;
+  const dayTasks=rows().filter(onDay).sort((a,b)=>String(a.gioLam||'99').localeCompare(String(b.gioLam||'99'))||prRank(a.priority)-prRank(b.priority));
+  const evs=evDay(sel);
+  const ev=evs.length?evs.map(e=>`<div class="ev"><time>${e.allDay?'Cả ngày':esc(e.start)+' – '+esc(e.end)}</time><div>${linkify(e.title)}${e.where?`<br><small>📍 ${linkify(e.where)}</small>`:''}<br><small>${esc(e.cal)}</small></div></div>`).join(''):'<div class="empty">Không có lịch hẹn</div>';
+  // team CBB: dòng DOVESON (việc công ty của bạn) + các thành viên trong lịch team
+  const mine=DATA.rows.filter(t=>t.src==='cbb'&&!isCancel(t)&&onDay(t));
+  const by={}; if(mine.length) by['DOVESON']=mine.map(t=>({kenh:t.nhom||'CBBS',text:(t.gioLam?'⏰ '+t.gioLam+' · ':'')+t.task+(isDone(t)?' ✓':''),done:isDone(t)}));
+  DATA.team.filter(x=>toNum(x.day)===sel).forEach(x=>(by[x.person]=by[x.person]||[]).push(x));
+  const team=Object.keys(by).length?Object.entries(by).map(([p,l])=>`<div class="ev ${p==='DOVESON'?'me':''}"><time style="color:${p==='DOVESON'?'var(--lime)':'var(--ink)'}">${esc(p)}</time><div>${l.map(x=>`<small>${esc(x.kenh)}</small> <span style="${x.done?'opacity:.6':''}">${linkify(x.text)}</span>`).join('<br>')}</div></div>`).join('')
+    :`<div class="empty">${DATA.team.some(x=>Math.floor(toNum(x.day)/100)===Math.floor(sel/100))?'Team không có việc ngày này':'Chưa có lịch team cho tháng này'}</div>`;
+  const label=sel===td?'Hôm nay':`${WD[nd(sel).getDay()]}`;
   return `<div class="page"><div class="page-h"><div><h1>Lịch</h1><p>Tháng ${m}, ${y}</p></div><div class="tabs">
     <button data-act="calPrev">‹ Trước</button><button data-act="calToday">Hôm nay</button><button data-act="calNext">Sau ›</button></div></div>
-    <div class="two"><div><div class="sec-t">📅 Lịch hẹn hôm nay</div><div class="panel">${ev}</div></div>
-      <div><div class="sec-t">👥 Team CBB hôm nay</div><div class="panel">${team}</div></div></div>
-    <div class="sec-t">Hạn công việc trong tháng</div>
-    <div class="bigcal">${['T2','T3','T4','T5','T6','T7','CN'].map(w=>`<div class="wd">${w}</div>`).join('')}${cells}</div></div>`;
+    <div class="bigcal">${['T2','T3','T4','T5','T6','T7','CN'].map(w=>`<div class="wd">${w}</div>`).join('')}${cells}</div>
+    <div id="dayDetail" class="sec-t" style="font-size:16px;color:var(--ink);margin-top:26px">${label} · ${longDate(sel)}</div>
+    <section class="panel list">${table(dayTasks,'Không có công việc ngày này')}</section>
+    <div class="two"><div><div class="sec-t">📅 Lịch hẹn</div><div class="panel">${ev}</div></div>
+      <div><div class="sec-t">👥 Team CBB</div><div class="panel">${team}</div></div></div></div>`;
 }
 
 function vDocs(){
@@ -686,8 +703,8 @@ function vSettings(){
     <div class="panel"><table>
       <tr><td>Việc công ty (CBBS)</td><td>${DATA.links.cbb?`<a href="${esc(DATA.links.cbb)}" target="_blank" style="color:var(--lime)">Mở sheet CBB - Task ↗</a>`:'<span class="red">Chưa kết nối</span>'}</td></tr>
       <tr><td>Việc cá nhân</td><td>${DATA.links.personal?`<a href="${esc(DATA.links.personal)}" target="_blank" style="color:var(--lime)">Mở sheet cá nhân ↗</a>`:'<span class="red">Chưa kết nối</span>'}</td></tr>
-      <tr><td>Google Calendar</td><td>${DATA.events.length} lịch hẹn hôm nay</td></tr>
-      <tr><td>Lịch team CBB</td><td>${DATA.team.length} đầu việc hôm nay</td></tr>
+      <tr><td>Google Calendar</td><td>${evToday().length} lịch hẹn hôm nay</td></tr>
+      <tr><td>Lịch team CBB</td><td>${DATA.team.filter(x=>toNum(x.day)===TODAY()).length} đầu việc hôm nay</td></tr>
       <tr><td>Cập nhật lần cuối</td><td>${esc(DATA.updatedAt)} · <button class="btn-line" data-act="reload">↻ Làm mới ngay</button></td></tr>
     </table></div></div>`;
 }
@@ -945,7 +962,9 @@ document.addEventListener('click',e=>{
     case 'toggle': toggleDone(t); break;
     case 'day': { const n=+el.dataset.n; if(S.view==='calendar'){S.view='overview';S.day=n;} else S.day=S.day===n?null:n; render(); break; }
     case 'calPrev': case 'calNext': { const y=Math.floor(S.calYM/100), m=S.calYM%100, d=new Date(y,m-1+(act==='calNext'?1:-1),1); S.calYM=d.getFullYear()*100+d.getMonth()+1; render(); break; }
-    case 'calToday': S.calYM=Math.floor(TODAY()/100); render(); break;
+    case 'calToday': S.calYM=Math.floor(TODAY()/100); S.calDay=null; render(); break;
+    case 'cday': { const n=+el.dataset.n; S.calDay=n; S.calYM=Math.floor(n/100); S.open=null; render();
+      const d=document.getElementById('dayDetail'); if(d&&innerWidth<900) d.scrollIntoView({behavior:'smooth',block:'start'}); break; }
     case 'bulk': { const l=groups(rows(true))[S.ttab].filter(x=>!S.month||x.thang===S.month); if(confirm(`Duyệt ${l.length} file?`)) approve(l,'Đã duyệt'); break; }
     case 'add': openAdd(); break;
     case 'reload': load(); break;
@@ -1002,8 +1021,8 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
   const find=i=>rows.find(x=>x.src===i.src&&x.key===i.key);
   const api={
     getData:()=>({today:f(0),updatedAt:new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})+' '+f(0),links:{cbb:'#',personal:'#'},errors:[],
-      events:[{title:'Họp content tuần CBBS',start:'10:00',end:'11:00',where:'Marina SG',cal:'Cá nhân'},{title:'Gọi khách Studio Mây chốt cut',start:'16:30',end:'17:00',where:'',cal:'Cá nhân'}],
-      team:[{person:'Hiền',kenh:'Tiktok',text:'Demo 2 clip: Girls date + Moment KH gia đình'},{person:'Vy',kenh:'Plan',text:'Chỉnh lại file trà chiều'},{person:'Vy',kenh:'Facebook',text:'Fix soc 16'}],
+      events:[{day:f(0),title:'Họp content tuần CBBS',start:'10:00',end:'11:00',where:'Marina SG',cal:'Cá nhân'},{day:f(0),title:'Gọi khách Studio Mây chốt cut',start:'16:30',end:'17:00',where:'',cal:'Cá nhân'},{day:f(2),title:'Chụp JW Marriott – Chang Nguyễn',start:'14:00',end:'15:00',where:'JW Marriott',cal:'Cá nhân'}],
+      team:[{day:f(0),person:'Hiền',kenh:'Tiktok',text:'Demo 2 clip: Girls date + Moment KH gia đình'},{day:f(0),person:'Vy',kenh:'Plan',text:'Chỉnh lại file trà chiều'},{day:f(0),person:'Vy',kenh:'Facebook',text:'Fix soc 16'},{day:f(1),person:'Hiền',kenh:'Plan',text:'Brief quay menu mới https://canva.link/abc123'}],
       rows:JSON.parse(JSON.stringify(rows))}),
     setApproval:(items,val)=>{items.forEach(i=>{const r=find(i);if(r)r.duyet=val;});return items.length;},
     setStatus:(i,s)=>{const r=find(i);if(r)r.status=s;return true;},
