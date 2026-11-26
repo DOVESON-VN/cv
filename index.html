@@ -70,7 +70,7 @@ svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .ws-menu button:hover,.ws-menu button.on{background:rgba(255,255,255,.06)}
 .ws-menu small{color:var(--muted)}
 .vsep{width:1px;height:34px;background:var(--line)}
-.today{color:#d7dbde;font-size:16px;white-space:nowrap}
+.top .today{color:#d7dbde;font-size:16px;white-space:nowrap}
 .search{flex:1;max-width:520px;margin-left:auto;display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;
   padding:0 14px;height:48px;background:rgba(14,12,9,.55);backdrop-filter:blur(8px)}
 .search input{flex:1;background:none;border:0;outline:0;color:var(--ink);font:inherit;font-size:15px;min-width:0}
@@ -156,11 +156,11 @@ svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .legend{flex:1;display:grid;gap:14px;font-size:14px}
 .legend div{display:flex;align-items:center;gap:8px}
 .legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
-.legend span{flex:1;color:#dfe3e5;white-space:nowrap}
+.legend span{flex:1;color:#dfe3e5;min-width:0}
 .cal{padding:26px 22px 22px}
 .cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .cal-h strong{font-size:18px;font-weight:600}
-.cal-h button{padding:4px 8px;border-radius:6px} .cal-h button:hover{background:rgba(255,255,255,.07)}
+.cal-h button{min-width:40px;min-height:40px;padding:6px 12px;border-radius:8px;font-size:22px;line-height:1} .cal-h button:hover{background:rgba(255,255,255,.07)}
 .cgrid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;row-gap:8px}
 .cgrid .wd{color:#cfd4d7;font-size:13.5px;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:10px}
 .cgrid button{position:relative;height:36px;border-radius:8px;font-size:16px;color:#e7eaec}
@@ -199,10 +199,15 @@ th{color:var(--muted);font-weight:500;font-size:13px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .red{color:var(--red)}
 .ev{display:flex;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line2)}
+.ev>div{min-width:0;flex:1}
+.panel,.detail,.note,.fb,.ev,td,.tname,.stat{overflow-wrap:anywhere}
+.ev a,.note a,.fb a,.person a{color:var(--lime);text-decoration:underline;text-underline-offset:2px}
+#view{min-width:0}
+.donut{flex-wrap:wrap}
 .ev:last-child{border-bottom:0}
 .ev time{min-width:104px;font-weight:600;color:var(--lime)}
 .ev small{color:var(--muted)}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 .sec-t{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:22px 0 10px}
 .bigcal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .bigcal .wd{color:var(--muted);font-size:13px;padding:4px 8px}
@@ -270,7 +275,7 @@ dialog h3{margin:0 0 16px;font-size:20px}
 /* ---------- responsive ---------- */
 @media (max-width:1250px){
   .ov{grid-template-columns:minmax(0,1fr)}
-  .rightcol{margin-top:0;display:grid;grid-template-columns:1fr 1fr}
+  .rightcol{margin-top:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .prog{border-bottom:0;border-right:1px solid var(--line)}
 }
 @media (max-width:900px){
@@ -283,7 +288,7 @@ dialog h3{margin:0 0 16px;font-size:20px}
   .content{padding:0 16px 96px}
   .top{height:auto;flex-wrap:wrap;gap:10px 14px;padding:14px 0}
   .ws>button{font-size:18px}
-  .vsep,.today{display:none}
+  .vsep,.top .today{display:none}
   .search{order:5;flex-basis:100%;max-width:none;height:44px}
   .bell{margin-left:auto}
   .avatar{width:40px;height:40px}
@@ -303,10 +308,10 @@ dialog h3{margin:0 0 16px;font-size:20px}
   .tr .cells{grid-column:2;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
   .tr .more{grid-row:1;grid-column:3}
   .detail{grid-column:1/-1}
-  .rightcol{grid-template-columns:1fr}
+  .rightcol{grid-template-columns:minmax(0,1fr)}
   .prog{border-right:0;border-bottom:1px solid var(--line)}
   .kpis{grid-template-columns:1fr 1fr}
-  .two{grid-template-columns:1fr}
+  .two{grid-template-columns:minmax(0,1fr)}
   .page-h h1{font-size:30px}
   .bigcal{gap:3px} .bigcal .day{min-height:64px;padding:4px} .bigcal .chip{font-size:10px;padding:1px 4px}
   .fgrid{grid-template-columns:1fr}
@@ -452,6 +457,10 @@ const diff=(a,b)=>Math.round((nd(a)-nd(b))/864e5);
 const longDate=n=>{const d=nd(n);return `${String(d.getDate()).padStart(2,'0')} Tháng ${d.getMonth()+1}, ${d.getFullYear()}`};
 const money=n=>(Number(n)||0).toLocaleString('vi-VN')+'đ';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// chữ thường + link bấm được (hiện gọn: tên miền + đoạn đầu)
+const linkify=s=>esc(s).replace(/https?:\/\/[^\s<]+/g,u=>{const raw=u.replace(/&amp;/g,'&');
+  let label=raw.replace(/^https?:\/\/(www\.)?/,''); if(label.length>34) label=label.slice(0,32)+'…';
+  return `<a href="${esc(raw)}" target="_blank" rel="noopener">${esc(label)}</a>`;});
 const TODAY=()=>toNum(DATA.today);
 
 const isDone=t=>DONE_RE.test(t.status), isCancel=t=>CANCEL_RE.test(t.status);
@@ -521,8 +530,8 @@ function taskRow(t){
     det=`<div class="detail">
       ${t.output?`<div>Output: ${esc(t.output)}</div>`:''}
       ${t.canhBao?`<div class="red">⚠ ${esc(t.canhBao)}</div>`:''}
-      ${t.note?`<div class="note">${esc(t.note)}</div>`:''}
-      ${t.feedback?`<div class="fb">💬 ${esc(t.feedback)}</div>`:''}
+      ${t.note?`<div class="note">${linkify(t.note)}</div>`:''}
+      ${t.feedback?`<div class="fb">💬 ${linkify(t.feedback)}</div>`:''}
       ${t.src==='personal'&&t.baoGia?`<div class="money">💰 Báo giá ${money(t.baoGia)} · Đã thu ${money(t.daThu)}${debt>0?` · <b>Còn ${money(debt)}</b>`:' · đã thu đủ'}</div>`:''}
       ${t.duyet?`<div style="margin-top:6px;color:var(--muted)">${esc(t.duyet)} lúc ${esc(t.ngayDuyet)}</div>`:''}
       ${L.length?`<div class="row links">${L.map(([n,u])=>`<a href="${esc(u)}" target="_blank" rel="noopener">↗ ${n}</a>`).join('')}</div>`:''}
@@ -636,9 +645,9 @@ function vCalendar(){
   for(let i=0;i<42;i++){const n=addD(start,i), inM=Math.floor(n/100)===S.calYM, l=(map[n]||[]);
     if(i>=35&&!inM&&i%7===0) break;
     cells+=`<button class="day ${inM?'':'out'} ${n===td?'today':''}" data-act="day" data-n="${n}"><b>${n%100}</b>${l.slice(0,3).map(t=>`<span class="chip ${t.src} ${isLate(t)?'late':''}">${esc(t.task)}</span>`).join('')}${l.length>3?`<span class="chip">+${l.length-3}</span>`:''}</button>`;}
-  const ev=DATA.events.length?DATA.events.map(e=>`<div class="ev"><time>${e.allDay?'Cả ngày':esc(e.start)+' – '+esc(e.end)}</time><div>${esc(e.title)}${e.where?`<br><small>📍 ${esc(e.where)}</small>`:''}<br><small>${esc(e.cal)}</small></div></div>`).join(''):'<div class="empty">Không có lịch hẹn hôm nay</div>';
+  const ev=DATA.events.length?DATA.events.map(e=>`<div class="ev"><time>${e.allDay?'Cả ngày':esc(e.start)+' – '+esc(e.end)}</time><div>${linkify(e.title)}${e.where?`<br><small>📍 ${linkify(e.where)}</small>`:''}<br><small>${esc(e.cal)}</small></div></div>`).join(''):'<div class="empty">Không có lịch hẹn hôm nay</div>';
   const by={}; DATA.team.forEach(x=>(by[x.person]=by[x.person]||[]).push(x));
-  const team=Object.keys(by).length?Object.entries(by).map(([p,l])=>`<div class="ev"><time style="color:var(--ink)">${esc(p)}</time><div>${l.map(x=>`<small>${esc(x.kenh)}</small> ${esc(x.text)}`).join('<br>')}</div></div>`).join(''):'<div class="empty">Lịch team hôm nay trống</div>';
+  const team=Object.keys(by).length?Object.entries(by).map(([p,l])=>`<div class="ev"><time style="color:var(--ink)">${esc(p)}</time><div>${l.map(x=>`<small>${esc(x.kenh)}</small> ${linkify(x.text)}`).join('<br>')}</div></div>`).join(''):'<div class="empty">Lịch team hôm nay trống</div>';
   return `<div class="page"><div class="page-h"><div><h1>Lịch</h1><p>Tháng ${m}, ${y}</p></div><div class="tabs">
     <button data-act="calPrev">‹ Trước</button><button data-act="calToday">Hôm nay</button><button data-act="calNext">Sau ›</button></div></div>
     <div class="two"><div><div class="sec-t">📅 Lịch hẹn hôm nay</div><div class="panel">${ev}</div></div>
