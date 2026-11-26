@@ -516,7 +516,8 @@ function taskRow(t){
       ${L.length?`<div class="row links">${L.map(([n,u])=>`<a href="${esc(u)}" target="_blank" rel="noopener">↗ ${n}</a>`).join('')}</div>`:''}
       <div class="row">${a==='pending'||a==='fix'?`<button class="btn-line ok" data-act="approve" data-id="${t.id}" data-v="Đã duyệt">✓ Duyệt</button>`:''}
         ${a==='pending'?`<button class="btn-line warn" data-act="approve" data-id="${t.id}" data-v="Cần sửa">✎ Cần sửa</button>`:''}
-        ${a==='approved'||a==='fix'?`<button class="btn-line" data-act="approve" data-id="${t.id}" data-v="">↺ Bỏ đánh dấu</button>`:''}</div>
+        ${a==='approved'||a==='fix'?`<button class="btn-line" data-act="approve" data-id="${t.id}" data-v="">↺ Bỏ đánh dấu</button>`:''}
+        ${t.src==='personal'&&debt>0?`<button class="btn-line ok" data-act="go" data-v="finance" data-f="debt">💰 Thu tiền khách</button>`:''}</div>
     </div>`;
   }
   return `<div class="tr ${done?'done':''}">
@@ -703,7 +704,12 @@ function finCalc(){
   const freelance=DATA.rows.filter(t=>t.src==='personal'&&!isCancel(t)).reduce((s,t)=>s+Math.max(0,(t.baoGia||0)-(t.daThu||0)),0);
   const sal=d.salary.filter(x=>x['Tháng']).map(x=>Object.assign({},x,{ym:monthOf(x['Tháng']),net:num(x['Thực nhận'])||(num(x['Lương cơ bản'])+num(x['Thưởng/Phụ cấp'])-num(x['Khấu trừ']))}))
     .sort((a,b)=>(b.ym||0)-(a.ym||0));
-  return {ym,tx,inM,thu,chi,acc,total,cats,budget,months,debts,owedMe,iOwe,freelance,sal};
+  const tdMap={};
+  DATA.rows.filter(t=>t.src==='personal'&&!isCancel(t)&&(t.baoGia||0)-(t.daThu||0)>0).forEach(t=>{
+    const k=t.khach||'(chưa ghi khách)', g=tdMap[k]=tdMap[k]||{khach:t.khach||'',name:k,tasks:[],con:0,next:null};
+    g.tasks.push(t); g.con+=(t.baoGia||0)-(t.daThu||0); const n=dueN(t); if(n&&(!g.next||n<g.next)) g.next=n; });
+  const taskDebts=Object.values(tdMap).sort((a,b)=>b.con-a.con);
+  return {ym,tx,inM,thu,chi,acc,total,cats,budget,months,debts,owedMe,iOwe,freelance,sal,taskDebts};
 }
 function vFinance(){
   if(!F.status){ finInit(); return `<div class="loading">Đang kiểm tra bảo mật…</div>`; }
@@ -755,9 +761,15 @@ function vFinance(){
         return `<tr><td>${esc(x['Người'])}${x['Ghi chú']?`<br><small style="color:var(--muted)">${esc(x['Ghi chú'])}</small>`:''}</td><td class="n amt">${fm(x['Số tiền'])}</td>
         <td class="n amt ${x.con>0?'red':''}">${x.con>0?fm(x.con):'✓ xong'}</td><td class="${late?'red':''}">${esc(x['Hạn trả']||'')}</td>
         <td>${x.con>0?`<button class="btn-line ok" data-act="fadd" data-v="pay" data-row="${x.row}">${dir===d.lists.debtDirs[0]?'Thu tiền':'Trả tiền'}</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="5" class="empty">Không có</td></tr>'}</table></div>`;};
-    body=`<div class="toolbar"><button class="btn-lime" data-act="fadd" data-v="debt">${ico('plus',16)}Thêm công nợ</button></div>
-      ${sec(d.lists.debtDirs[0],`Người khác nợ mình · ${fm(c.owedMe)}`)}${sec(d.lists.debtDirs[1],`Mình nợ người khác · ${fm(c.iOwe)}`)}
-      <p style="color:var(--muted);font-size:13px">Tiền khách freelance còn nợ (${fm(c.freelance)}) xem ở trang Báo cáo – lấy từ sheet công việc cá nhân.</p>`;
+    const td=`<div class="sec-t">Khách nợ tiền task · ${fm(c.freelance)} <small style="text-transform:none;letter-spacing:0">(tự đồng bộ từ sheet công việc)</small></div>
+      <div class="panel"><table><tr><th>Khách</th><th>Task chưa thu đủ</th><th class="n">Còn nợ</th><th></th></tr>
+      ${c.taskDebts.map(g=>`<tr><td><b>${esc(g.name)}</b>${g.next?`<br><small style="color:${g.next<TODAY()?'var(--red)':'var(--muted)'}">Hạn sớm nhất ${esc(longDate(g.next))}</small>`:''}</td>
+        <td><small>${g.tasks.map(t=>`${esc(t.task)} · <span class="amt">${fm((t.baoGia||0)-(t.daThu||0))}</span>`).join('<br>')}</small></td>
+        <td class="n amt red">${fm(g.con)}</td>
+        <td>${g.khach?`<button class="btn-line ok" data-act="fadd" data-v="collect" data-k="${esc(g.khach)}">Thu tiền</button>`:'<small style="color:var(--muted)">Ghi tên khách trong sheet để thu</small>'}</td></tr>`).join('')
+        ||'<tr><td colspan="4" class="empty">Không khách nào còn nợ tiền task 🎉</td></tr>'}</table></div>`;
+    body=`<div class="toolbar"><button class="btn-lime" data-act="fadd" data-v="debt">${ico('plus',16)}Thêm công nợ khác</button></div>
+      ${td}${sec(d.lists.debtDirs[0],`Người khác nợ mình (khoản khác) · ${fm(c.owedMe)}`)}${sec(d.lists.debtDirs[1],`Mình nợ người khác · ${fm(c.iOwe)}`)}`;
   } else {
     const got=c.sal.filter(x=>x['Ngày nhận']), year=Math.floor(c.ym/100), ytd=got.filter(x=>Math.floor((x.ym||0)/100)===year).reduce((s,x)=>s+x.net,0);
     body=`<div class="toolbar"><button class="btn-lime" data-act="fadd" data-v="salary">${ico('plus',16)}Thêm kỳ lương</button>
@@ -774,7 +786,7 @@ function txTable(l,emptyTxt){
     return `<tr><td>${esc(String(t['Ngày']).slice(0,5))}</td><td>${esc(t['Danh mục']||'')}${t['Đối tượng']||t['Ghi chú']?`<br><small style="color:var(--muted)">${esc([t['Đối tượng'],t['Ghi chú']].filter(Boolean).join(' · '))}</small>`:''}</td>
     <td><span class="tag2">${esc(t['Tài khoản']||'')}</span></td><td class="n amt ${inc?'in':'out'}">${inc?'+':'−'}${fm(t['Số tiền'])}</td></tr>`;}).join('')||`<tr><td colspan="4" class="empty">${emptyTxt||'Trống'}</td></tr>`}</table>`;
 }
-function finDialog(kind,row){
+function finDialog(kind,row,khach){
   const L=F.data.lists, f=document.getElementById('finForm'), today=(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`})();
   const opts=a=>a.map(x=>`<option>${esc(x)}</option>`).join(''), accSel=`<label>Tài khoản<select name="taiKhoan">${opts(Object.keys(finCalc().acc).length?Object.keys(finCalc().acc):L.accounts)}</select></label>`;
   const amount=`<label>Số tiền (đ) *<input name="soTien" type="number" min="1000" step="1000" inputmode="numeric" required></label>`;
@@ -791,6 +803,11 @@ function finDialog(kind,row){
     inner=`<input type="hidden" name="row" value="${row}"><input type="hidden" name="nguoi" value="${esc(x['Người'])}">
       <label>Số tiền (còn ${money(con)})<input name="soTien" type="number" min="1000" max="${con}" step="1000" value="${con}" required></label>${accSel}
       <p class="full" style="color:var(--muted);font-size:13px;margin:0">App sẽ tự ghi 1 khoản ${me?'thu':'chi'} vào Giao dịch.</p>`; }
+  if(kind==='collect'){ const g=finCalc().taskDebts.find(x=>x.khach===khach); title=`Thu tiền ${khach}`;
+    inner=`<input type="hidden" name="khach" value="${esc(khach)}">
+      <label>Số tiền (khách còn nợ ${money(g.con)})<input name="soTien" type="number" min="1000" max="${g.con}" step="1000" value="${g.con}" required></label>
+      ${accSel.replace('<option>Ngân hàng</option>','<option selected>Ngân hàng</option>')}
+      <p class="full" style="color:var(--muted);font-size:13px;margin:0">App sẽ cộng vào cột <b>Đã thu</b> của các task (task hạn sớm nhất trước) và tự ghi 1 khoản thu "Freelance".</p>`; }
   if(kind==='salary'){ const n=new Date(); title='Thêm kỳ lương';
     inner=`<label>Tháng (MM/YYYY)<input name="thang" value="${String(n.getMonth()+1).padStart(2,'0')}/${n.getFullYear()}" pattern="\\d{2}/\\d{4}" required></label>
       <label>Nguồn<input name="nguon" value="CBBS"></label><label>Lương cơ bản *<input name="coBan" type="number" min="0" step="1000" required></label>
@@ -813,6 +830,8 @@ document.getElementById('finForm').addEventListener('submit',async e=>{
     else if(k==='pay') await call('payDebt',F.pin,Object.assign(v,{row:+v.row}));
     else if(k==='salary') await call('addSalary',F.pin,v);
     else if(k==='recv') await call('receiveSalary',F.pin,Object.assign(v,{row:+v.row}));
+    else if(k==='collect'){ const r=await call('collectClientPayment',F.pin,v); document.getElementById('fdlg').close();
+      toast(`Đã thu ${money(r.paid)} · cập nhật ${r.tasks} task`); await load(true); await finLoad(); return; }
     document.getElementById('fdlg').close(); toast('Đã lưu vào sheet tài chính'); await finLoad();
   }catch(err){ toast('Lỗi: '+(err.message||err)); } finally{ b.disabled=false; }
 });
@@ -889,7 +908,7 @@ document.addEventListener('click',e=>{
   const act=el.dataset.act, t=BYID[el.dataset.id];
   if(act!=='menu') closePop();
   switch(act){
-    case 'go': S.view=el.dataset.v; if(el.dataset.t) S.ttab=el.dataset.t; S.open=null; lsSet('view',S.view); scrollTo(0,0); render(); break;
+    case 'go': S.view=el.dataset.v; if(el.dataset.t) S.ttab=el.dataset.t; if(el.dataset.f) F.tab=el.dataset.f; S.open=null; lsSet('view',S.view); scrollTo(0,0); render(); break;
     case 'src': S.src=el.dataset.v; lsSet('src',S.src); document.getElementById('wsMenu').classList.remove('open'); render(); break;
     case 'ttab': S.ttab=el.dataset.v; S.month=''; render(); break;
     case 'expand': S.open=S.open===el.dataset.id?null:el.dataset.id; render(); break;
@@ -906,7 +925,7 @@ document.addEventListener('click',e=>{
     case 'fm': { const ym=F.ym||Math.floor(TODAY()/100), d=new Date(Math.floor(ym/100),ym%100-1+(+el.dataset.v),1); F.ym=d.getFullYear()*100+d.getMonth()+1; render(); break; }
     case 'fhide': F.hide=!F.hide; lsSet('hide',F.hide?'1':'0'); render(); break;
     case 'flock': F.pin=null; F.data=null; render(); break;
-    case 'fadd': finDialog(el.dataset.v, +el.dataset.row||0); break;
+    case 'fadd': finDialog(el.dataset.v, +el.dataset.row||0, el.dataset.k); break;
   }
 });
 document.addEventListener('change',e=>{ if(e.target.dataset.act==='month'){S.month=e.target.value;render();} });
@@ -970,6 +989,10 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
     payDebt:(p,x)=>{const r=FD.data.debts.find(d=>d.row===x.row);r['Đã trả']+=+x.soTien;const me=r['Chiều']==='Người khác nợ mình';
       FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':me?'Thu':'Chi','Số tiền':+x.soTien,'Danh mục':me?'Thu nợ':'Trả nợ','Tài khoản':x.taiKhoan,'Đối tượng':x.nguoi,'Ghi chú':'Công nợ'});return 1;},
     addSalary:(p,s)=>{FD.data.salary.push({row:FD.data.salary.length+2,'Tháng':s.thang,'Nguồn':s.nguon,'Lương cơ bản':+s.coBan,'Thưởng/Phụ cấp':+s.thuong||0,'Khấu trừ':+s.khauTru||0,'Thực nhận':(+s.coBan)+(+s.thuong||0)-(+s.khauTru||0),'Ngày nhận':'','Tài khoản nhận':''});return 1;},
+    collectClientPayment:(p,x)=>{ let remain=+x.soTien; const l=rows.filter(r=>r.src==='personal'&&r.khach===x.khach&&r.baoGia-r.daThu>0); let n=0;
+      for(const r of l){ if(remain<=0) break; const pay=Math.min(remain,r.baoGia-r.daThu); r.daThu+=pay; remain-=pay; n++; }
+      FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':'Thu','Số tiền':+x.soTien,'Danh mục':'Freelance','Tài khoản':x.taiKhoan,'Đối tượng':x.khach,'Ghi chú':'Thu tiền task'});
+      return {paid:+x.soTien,tasks:n,remaining:0}; },
     receiveSalary:(p,x)=>{const r=FD.data.salary.find(s=>s.row===x.row);r['Ngày nhận']=f(0);r['Tài khoản nhận']=x.taiKhoan;
       FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':'Thu','Số tiền':r['Thực nhận'],'Danh mục':'Lương','Tài khoản':x.taiKhoan,'Đối tượng':r['Nguồn'],'Ghi chú':'Lương '+r['Tháng']});return 1;},
   };
