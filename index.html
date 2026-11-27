@@ -200,7 +200,9 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .red{color:var(--red)}
 .ev{display:flex;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line2)}
 .ev>div{min-width:0;flex:1}
-.panel,.detail,.note,.fb,.ev,td,.tname,.stat{overflow-wrap:anywhere}
+.panel,.detail,.note,.fb,.ev,.tname,.stat{overflow-wrap:anywhere}
+td{overflow-wrap:break-word} th{white-space:nowrap} td:first-child{white-space:nowrap}
+@media (max-width:560px){ th,td{padding:9px 8px} }
 .ev a,.note a,.fb a,.person a{color:var(--lime);text-decoration:underline;text-underline-offset:2px}
 #view{min-width:0}
 .donut{flex-wrap:wrap}
@@ -249,6 +251,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .cf .pair i.in{background:var(--gold-grad)} .cf .pair i.out{background:#5b5346}
 .amt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
 .amt.in{color:#9fdcae} .amt.out{color:#f0e6d2}
+.amt-hint{display:block;min-height:16px;font-size:12px;color:var(--lime);margin-top:2px}
+.chk-line{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;color:var(--ink)!important;font-size:14px!important;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.chk-line input{width:20px;height:20px;accent-color:#d9ad4f}
+tr.click{cursor:pointer} tr.click:hover td{background:rgba(255,255,255,.03)}
 .finwarn{margin-bottom:14px;padding:10px 14px;border-radius:10px;background:var(--amber-soft);color:var(--amber);font-size:13.5px}
 .tag2{font-size:12px;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.07);color:#d8d4c8}
 .hide-amt .amt,.hide-amt .kpi b,.hide-amt .cat span:last-child{filter:blur(7px)}
@@ -468,6 +474,20 @@ const TODAY=()=>toNum(DATA.today);
 
 const isDone=t=>DONE_RE.test(t.status), isCancel=t=>CANCEL_RE.test(t.status);
 const evToday=()=>DATA.events.filter(e=>toNum(e.day)===TODAY());
+/* ô nhập tiền: tự thêm dấu chấm 1.500.000 + gợi ý "1,5 triệu" */
+const MONEY_FIELDS=['soTien','coBan','thuong','khauTru','baoGia'];
+const dots=v=>String(v||'').replace(/\D/g,'').replace(/^0+(?=\d)/,'').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+const words=n=>{n=+n||0; if(n>=1e9) return (n/1e9).toLocaleString('vi-VN',{maximumFractionDigits:2})+' tỷ'; if(n>=1e6) return (n/1e6).toLocaleString('vi-VN',{maximumFractionDigits:2})+' triệu'; if(n>=1e3) return (n/1e3).toLocaleString('vi-VN',{maximumFractionDigits:1})+' nghìn'; return n?n+' đ':'';};
+function moneyfy(root){ root.querySelectorAll('input').forEach(i=>{ if(!MONEY_FIELDS.includes(i.name)||i.dataset.money) return;
+  const max=i.getAttribute('max'); i.dataset.money='1'; if(max) i.dataset.max=max;
+  i.type='text'; i.inputMode='numeric'; i.autocomplete='off'; ['min','max','step'].forEach(a=>i.removeAttribute(a));
+  i.value=dots(i.value); i.placeholder=i.placeholder||'VD: 1.500.000';
+  const h=document.createElement('small'); h.className='amt-hint'; i.insertAdjacentElement('afterend',h);
+  const upd=()=>{h.textContent=words(i.value.replace(/\D/g,''));}; upd();
+  i.addEventListener('input',()=>{const end=i.value.length-i.selectionStart; i.value=dots(i.value); const pos=Math.max(0,i.value.length-end); i.setSelectionRange(pos,pos); upd();}); }); }
+function moneyVals(v,form){ MONEY_FIELDS.forEach(k=>{ if(v[k]!=null) v[k]=String(v[k]).replace(/\D/g,''); });
+  form.querySelectorAll('input[data-max]').forEach(i=>{ if(+v[i.name]>+i.dataset.max) throw new Error('Tối đa '+money(+i.dataset.max)); });
+  return v; }
 function approval(t){ if(t.duyet==='Đã duyệt')return'approved'; if(t.duyet==='Cần sửa')return'fix';
   if(t.src==='cbb'&&isDone(t)) return'approved'; // việc công ty: DONE là hoàn thành luôn
   if(isDone(t)||REVIEW_RE.test(t.status))return'pending'; return null;}
@@ -709,6 +729,34 @@ function vSettings(){
     </table></div></div>`;
 }
 
+/* ================= MỞ KHOÁ BẰNG VÂN TAY / FACE ID =================
+   PIN được mã hoá bằng khoá AES không xuất được (lưu IndexedDB của thiết bị) và chỉ giải mã
+   sau khi xác thực sinh trắc học của thiết bị (WebAuthn, platform authenticator). */
+const BIO={avail:false};
+const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))), unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+(async()=>{ try{ BIO.avail=!HAS_GAS&&window.isSecureContext&&!!window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }catch(e){} if(BIO.avail&&DATA&&S.view==='finance') render(); })();
+function idb(){ return new Promise((res,rej)=>{const r=indexedDB.open('cv-bio',1); r.onupgradeneeded=()=>r.result.createObjectStore('k'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); }
+async function idbGet(k){ const db=await idb(); return new Promise((res,rej)=>{const q=db.transaction('k').objectStore('k').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error);}); }
+async function idbPut(k,v){ const db=await idb(); return new Promise((res,rej)=>{const t=db.transaction('k','readwrite'); t.objectStore('k').put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error);}); }
+const bioOn=()=>!!lsGet('bio_id')&&!!lsGet('bio_pin');
+async function bioEnable(){
+  const cred=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'DOVESON'},
+    user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'doveson',displayName:'DOVESON'},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},timeout:60000,attestation:'none'}});
+  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']); await idbPut('aes',key);
+  const iv=crypto.getRandomValues(new Uint8Array(12)), ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(F.pin));
+  lsSet('bio_id',b64u(cred.rawId)); lsSet('bio_pin',b64u(iv)+'.'+b64u(ct));
+}
+async function bioUnlock(){
+  await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentials:[{type:'public-key',id:unb64(lsGet('bio_id'))}],userVerification:'required',timeout:60000}});
+  const key=await idbGet('aes'); if(!key) throw new Error('Khoá vân tay trên máy đã mất, hãy nhập PIN rồi bật lại');
+  const [iv,ct]=lsGet('bio_pin').split('.').map(unb64);
+  return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct));
+}
+function bioDisable(){ lsSet('bio_id',''); lsSet('bio_pin',''); }
+
 /* ================= TÀI CHÍNH (riêng tư, có PIN) ================= */
 const F={status:null,pin:null,data:null,tab:'overview',ym:null,hide:lsGet('hide')==='1',err:'',hiddenAt:0};
 const fm=n=>money(n);
@@ -718,9 +766,9 @@ const ymLabel=ym=>`Tháng ${ym%100}/${Math.floor(ym/100)}`;
 
 async function finInit(){ try{ F.status=await call('finStatus'); F.err=''; }catch(e){ F.status={hasPin:false,blocked:true}; F.err=e.message||String(e); } render(); }
 async function finLoad(){
-  try{ F.data=await call('getFinance',F.pin); F.err=''; }
+  try{ F.data=await call('getFinance',F.pin); F.err=''; if(F.data.posted) setTimeout(()=>toast(`Đã tự ghi ${F.data.posted} khoản cố định`),300); }
   catch(e){ const m=e.message||String(e); F.data=null;
-    if(/NO_PIN/.test(m)){F.status={hasPin:false};F.pin=null;} else if(/PIN/i.test(m)){F.pin=null;} F.err=m.replace('NO_PIN','Chưa đặt PIN'); }
+    if(/NO_PIN/.test(m)){F.status={hasPin:false};F.pin=null;} else if(/PIN/i.test(m)){F.pin=null; if(bioOn()){bioDisable(); m+=' (đã tắt vân tay, PIN có thể đã đổi)';}} F.err=m.replace('NO_PIN','Chưa đặt PIN'); }
   render();
 }
 function finCalc(){
@@ -764,15 +812,17 @@ function vFinance(){
       <h2>${create?'Tạo PIN tài chính':'Nhập PIN'}</h2><p>${create?'4–8 chữ số. PIN chỉ lưu dạng mã hoá trong tài khoản dovesonvn.':'Dữ liệu tài chính riêng tư, không lưu trên Drive công ty.'}</p>
       <input name="pin" type="password" inputmode="numeric" pattern="\\d{4,8}" maxlength="8" required autocomplete="off" placeholder="••••">
       ${create?'<input name="pin2" type="password" inputmode="numeric" pattern="\\d{4,8}" maxlength="8" required autocomplete="off" placeholder="Nhập lại">':''}
-      ${F.err?`<p class="red">${esc(F.err)}</p>`:''}<button class="btn-lime" style="width:100%;justify-content:center">${create?'Tạo PIN & mở':'Mở khoá'}</button></form>`;
+      ${F.err?`<p class="red">${esc(F.err)}</p>`:''}<button class="btn-lime" style="width:100%;justify-content:center">${create?'Tạo PIN & mở':'Mở khoá'}</button>
+      ${!create&&BIO.avail&&bioOn()?`<button type="button" class="btn-line ok" data-act="bioUnlock" style="width:100%;justify-content:center;margin-top:10px;padding:12px">👆 Mở bằng vân tay / Face ID</button>`:''}</form>`;
   }
   if(!F.data){ if(!F.err) finLoad(); return F.err?`<div class="loading red">${esc(F.err)}</div>`:`<div class="loading">Đang tải tài chính…</div>`; }
   const c=finCalc(), d=F.data;
-  const tabs=[['overview','Tổng quan'],['tx','Giao dịch'],['debt','Công nợ'],['salary','Lương']];
+  const tabs=[['overview','Tổng quan'],['tx','Giao dịch'],['debt','Công nợ'],['salary','Lương'],['fixed','Cố định']];
   const head=`<div class="page-h"><div><h1>Tài chính</h1><p>Riêng tư · <a href="${esc(d.url)}" target="_blank" style="color:var(--lime)">Mở sheet ↗</a></p></div>
     <div class="fin-top"><div class="mnav"><button data-act="fm" data-v="-1">‹</button><b>${ymLabel(c.ym)}</b><button data-act="fm" data-v="1">›</button></div>
       <button class="btn-line" data-act="fhide" title="Ẩn/hiện số tiền">${ico('eye',16)}${F.hide?'Hiện số':'Ẩn số'}</button>
       <button class="btn-line" data-act="flock">${ico('lock',16)}Khoá</button>
+      ${BIO.avail?`<button class="btn-line ${bioOn()?'':'ok'}" data-act="${bioOn()?'bioOff':'bioOn'}">👆 ${bioOn()?'Tắt vân tay':'Bật vân tay'}</button>`:''}
       <button class="btn-lime" data-act="fadd" data-v="tx-Chi">${ico('plus',16)}Khoản chi</button>
       <button class="btn-line ok" data-act="fadd" data-v="tx-Thu">+ Khoản thu</button></div></div>
     ${d.warnings.map(w=>`<div class="finwarn">⚠ ${esc(w)}</div>`).join('')}
@@ -814,6 +864,21 @@ function vFinance(){
         ||'<tr><td colspan="4" class="empty">Không khách nào còn nợ tiền task 🎉</td></tr>'}</table></div>`;
     body=`<div class="toolbar"><button class="btn-lime" data-act="fadd" data-v="debt">${ico('plus',16)}Thêm công nợ khác</button></div>
       ${td}${sec(d.lists.debtDirs[0],`Người khác nợ mình (khoản khác) · ${fm(c.owedMe)}`)}${sec(d.lists.debtDirs[1],`Mình nợ người khác · ${fm(c.iOwe)}`)}`;
+  } else if(F.tab==='fixed'){
+    const l=(d.recurring||[]).filter(x=>x['Tên']);
+    const per=l.filter(x=>x['Đang bật']!=='Không');
+    const sumT=t=>per.filter(x=>(t==='Thu'?['Thu','Lương']:['Chi']).includes(x['Loại'])).reduce((s,x)=>s+num(x['Số tiền']),0);
+    body=`<div class="kpis6" style="grid-template-columns:repeat(2,1fr)"><div class="panel kpi pos"><b>${fm(sumT('Thu'))}</b><span>Thu cố định mỗi tháng (gồm lương)</span></div>
+      <div class="panel kpi"><b>${fm(sumT('Chi'))}</b><span>Chi cố định mỗi tháng</span></div></div>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px">Thêm khoản cố định: bấm <b>Khoản chi / Khoản thu</b> (hoặc <b>Thêm kỳ lương</b>) rồi tích ô "cố định hàng tháng". App tự ghi mỗi tháng khi tới ngày, kể cả tháng bạn không mở app.</p>
+      <div class="panel"><table><tr><th>Khoản</th><th>Loại</th><th class="n">Số tiền</th><th>Ngày</th><th>Đã ghi đến</th><th></th></tr>
+      ${l.map(x=>{const on=x['Đang bật']!=='Không';
+        return `<tr style="${on?'':'opacity:.5'}"><td><b>${esc(x['Tên'])}</b>${x['Danh mục']?`<br><small style="color:var(--muted)">${esc(x['Danh mục'])} · ${esc(x['Tài khoản']||'')}</small>`:''}</td>
+        <td><span class="tag2">${esc(x['Loại'])}</span></td><td class="n amt ${x['Loại']==='Chi'?'out':'in'}">${fm(x['Số tiền'])}</td>
+        <td>ngày ${esc(x['Ngày trong tháng'])}</td><td>${esc(x['Đã ghi đến']||'')}</td>
+        <td style="white-space:nowrap"><button class="btn-line" data-act="fadd" data-v="editfix" data-row="${x.row}">Sửa</button>
+          <button class="btn-line ${on?'warn':'ok'}" data-act="fixtoggle" data-row="${x.row}">${on?'Tắt':'Bật'}</button></td></tr>`;}).join('')
+        ||'<tr><td colspan="6" class="empty">Chưa có khoản cố định nào</td></tr>'}</table></div>`;
   } else {
     const got=c.sal.filter(x=>x['Ngày nhận']), year=Math.floor(c.ym/100), ytd=got.filter(x=>Math.floor((x.ym||0)/100)===year).reduce((s,x)=>s+x.net,0);
     body=`<div class="toolbar"><button class="btn-lime" data-act="fadd" data-v="salary">${ico('plus',16)}Thêm kỳ lương</button>
@@ -827,7 +892,7 @@ function vFinance(){
 }
 function txTable(l,emptyTxt){
   return `<table><tr><th>Ngày</th><th>Nội dung</th><th>Tài khoản</th><th class="n">Số tiền</th></tr>${l.map(t=>{const inc=t['Loại']==='Thu';
-    return `<tr><td>${esc(String(t['Ngày']).slice(0,5))}</td><td>${esc(t['Danh mục']||'')}${t['Đối tượng']||t['Ghi chú']?`<br><small style="color:var(--muted)">${esc([t['Đối tượng'],t['Ghi chú']].filter(Boolean).join(' · '))}</small>`:''}</td>
+    return `<tr class="click" data-act="fadd" data-v="edittx" data-row="${t.row}" title="Bấm để sửa / xoá"><td>${esc(String(t['Ngày']).slice(0,5))}</td><td>${esc(t['Danh mục']||'')}${t['Đối tượng']||t['Ghi chú']?`<br><small style="color:var(--muted)">${esc([t['Đối tượng'],t['Ghi chú']].filter(Boolean).join(' · '))}</small>`:''}</td>
     <td><span class="tag2">${esc(t['Tài khoản']||'')}</span></td><td class="n amt ${inc?'in':'out'}">${inc?'+':'−'}${fm(t['Số tiền'])}</td></tr>`;}).join('')||`<tr><td colspan="4" class="empty">${emptyTxt||'Trống'}</td></tr>`}</table>`;
 }
 function finDialog(kind,row,khach){
@@ -838,7 +903,8 @@ function finDialog(kind,row,khach){
   if(kind==='tx-Chi'||kind==='tx-Thu'){ const isChi=kind==='tx-Chi'; title=isChi?'Thêm khoản chi':'Thêm khoản thu';
     inner=`<input type="hidden" name="loai" value="${isChi?'Chi':'Thu'}">${amount}<label>Ngày<input type="date" name="ngay" value="${today}"></label>
       <label>Danh mục<select name="danhMuc">${opts(isChi?L.catChi:L.catThu)}</select></label>${accSel}
-      <label>${isChi?'Chi cho ai / ở đâu':'Từ ai'}<input name="doiTuong"></label><label class="full">Ghi chú<input name="ghiChu"></label>`; }
+      <label>${isChi?'Chi cho ai / ở đâu':'Từ ai'}<input name="doiTuong" placeholder="${isChi?'VD: Adobe, tiền nhà…':''}"></label><label class="full">Ghi chú<input name="ghiChu"></label>
+      <label class="full chk-line"><input type="checkbox" name="coDinh" value="1"> ${isChi?'Chi phí cố định hàng tháng':'Khoản thu cố định hàng tháng'} <small style="color:var(--muted)">– tháng sau app tự ghi vào đúng ngày này</small></label>`; }
   if(kind==='debt'){ title='Thêm công nợ';
     inner=`<label class="full">Chiều<select name="chieu">${opts(L.debtDirs)}</select></label><label>Người *<input name="nguoi" required></label>${amount}
       <label>Ngày<input type="date" name="ngay" value="${today}"></label><label>Hạn trả<input type="date" name="hanTra"></label><label class="full">Ghi chú<input name="ghiChu"></label>`; }
@@ -856,20 +922,48 @@ function finDialog(kind,row,khach){
     inner=`<label>Tháng (MM/YYYY)<input name="thang" value="${String(n.getMonth()+1).padStart(2,'0')}/${n.getFullYear()}" pattern="\\d{2}/\\d{4}" required></label>
       <label>Nguồn<input name="nguon" value="CBBS"></label><label>Lương cơ bản *<input name="coBan" type="number" min="0" step="1000" required></label>
       <label>Thưởng / phụ cấp<input name="thuong" type="number" min="0" step="1000"></label><label>Khấu trừ (BH, thuế…)<input name="khauTru" type="number" min="0" step="1000"></label>
-      <label class="full">Ghi chú<input name="ghiChu"></label>`; }
+      <label class="full">Ghi chú<input name="ghiChu"></label>
+      <label class="full chk-line"><input type="checkbox" name="coDinh" value="1" onchange="this.form.ngayNhan.parentElement.style.display=this.checked?'':'none'"> Lương cố định hàng tháng <small style="color:var(--muted)">– app tự thêm kỳ lương mỗi tháng</small></label>
+      <label style="display:none">Ngày nhận lương hàng tháng<input name="ngayNhan" type="number" min="1" max="31" value="10" inputmode="numeric"></label>`; }
   if(kind==='recv'){ const x=finCalc().sal.find(s=>s.row===row); title=`Nhận lương ${x?ymLabel(x.ym):''}`;
     inner=`<input type="hidden" name="row" value="${row}"><input type="hidden" name="thang" value="${esc(x['Tháng'])}">
       <p class="full" style="margin:0">Thực nhận: <b class="amt in">${money(x.net)}</b></p>${accSel.replace('<option>Ngân hàng</option>','<option selected>Ngân hàng</option>')}
       <p class="full" style="color:var(--muted);font-size:13px;margin:0">Lương đã được tính vào thu nhập tháng; bấm Lưu để cộng vào số dư tài khoản này.</p>`; }
+  let extra='';
+  if(kind==='edittx'){ const t=F.data.tx.find(x=>x.row===row); if(!t) return toast('Không tìm thấy giao dịch'); title='Sửa giao dịch';
+    const iso=String(t['Ngày']).split('/').reverse().join('-'), cats=[...new Set([t['Danh mục'],...L.catChi,...L.catThu].filter(Boolean))],
+      accs=[...new Set([t['Tài khoản'],...Object.keys(finCalc().acc),...L.accounts].filter(Boolean))];
+    const sel=(a,v)=>a.map(x=>`<option ${x===v?'selected':''}>${esc(x)}</option>`).join('');
+    inner=`<input type="hidden" name="row" value="${row}">
+      <label>Loại<select name="loai">${sel(['Chi','Thu'],t['Loại'])}</select></label>
+      <label>Số tiền (đ) *<input name="soTien" value="${num(t['Số tiền'])}" required></label>
+      <label>Ngày<input type="date" name="ngay" value="${esc(iso)}"></label>
+      <label>Danh mục<select name="danhMuc">${sel(cats,t['Danh mục'])}</select></label>
+      <label>Tài khoản<select name="taiKhoan">${sel(accs,t['Tài khoản'])}</select></label>
+      <label>Đối tượng<input name="doiTuong" value="${esc(t['Đối tượng']||'')}"></label>
+      <label class="full">Ghi chú<input name="ghiChu" value="${esc(t['Ghi chú']||'')}"></label>`;
+    extra=`<button class="btn-line warn" type="button" data-act="deltx" data-row="${row}" style="margin-right:auto">🗑 Xoá</button>`; }
+  if(kind==='editfix'){ const x=(F.data.recurring||[]).find(r=>r.row===row); if(!x) return toast('Không tìm thấy'); title='Sửa khoản cố định';
+    inner=`<input type="hidden" name="row" value="${row}"><input type="hidden" name="ten" value="${esc(x['Tên'])}">
+      <label class="full">Tên<input name="ten2" value="${esc(x['Tên'])}" required></label>
+      <label>${x['Loại']==='Lương'?'Lương thực nhận':'Số tiền'} (đ) *<input name="soTien" value="${num(x['Số tiền'])}" required></label>
+      <label>Ngày trong tháng<input name="ngay" type="number" min="1" max="31" value="${num(x['Ngày trong tháng'])||1}" inputmode="numeric"></label>
+      <p class="full" style="color:var(--muted);font-size:13px;margin:0">Thay đổi áp dụng từ lần ghi tiếp theo. Các tháng đã ghi giữ nguyên (sửa từng giao dịch nếu cần).</p>`;
+    extra=`<button class="btn-line warn" type="button" data-act="delfix" data-row="${row}" style="margin-right:auto">🗑 Xoá</button>`; }
   f.dataset.kind=kind;
-  f.innerHTML=`<h3>${esc(title)}</h3><div class="fgrid">${inner}</div><div class="fbtns"><button class="btn-line" value="cancel" formnovalidate>Huỷ</button><button class="btn-lime" value="save">Lưu</button></div>`;
+  f.innerHTML=`<h3>${esc(title)}</h3><div class="fgrid">${inner}</div><div class="fbtns">${extra}<button class="btn-line" value="cancel" formnovalidate>Huỷ</button><button class="btn-lime" value="save">Lưu</button></div>`;
+  moneyfy(f);
   document.getElementById('fdlg').showModal(); const first=f.querySelector('input:not([type=hidden]),select'); if(first) first.focus();
 }
 document.getElementById('finForm').addEventListener('submit',async e=>{
   if(e.submitter&&e.submitter.value==='cancel') return; e.preventDefault();
-  const f=e.target, v=Object.fromEntries(new FormData(f).entries()), k=f.dataset.kind, b=f.querySelector('.btn-lime'); b.disabled=true;
+  const f=e.target, k=f.dataset.kind, b=f.querySelector('.btn-lime'); b.disabled=true;
   try{
+    const v=moneyVals(Object.fromEntries(new FormData(f).entries()),f);
     if(k.startsWith('tx-')) await call('addTx',F.pin,v);
+    else if(k==='edittx'){ const t=F.data.tx.find(x=>x.row===+v.row);
+      await call('updateTx',F.pin,Object.assign(v,{row:+v.row,orig:{'Ngày':t['Ngày'],'Số tiền':t['Số tiền'],'Loại':t['Loại']}})); }
+    else if(k==='editfix') await call('setRecurring',F.pin,{row:+v.row,ten:v.ten,action:'update',soTien:v.soTien,ngay:v.ngay,ten2:v.ten2});
     else if(k==='debt') await call('addDebt',F.pin,v);
     else if(k==='pay') await call('payDebt',F.pin,Object.assign(v,{row:+v.row}));
     else if(k==='salary') await call('addSalary',F.pin,v);
@@ -973,6 +1067,16 @@ document.addEventListener('click',e=>{
     case 'fhide': F.hide=!F.hide; lsSet('hide',F.hide?'1':'0'); render(); break;
     case 'flock': F.pin=null; F.data=null; render(); break;
     case 'fadd': finDialog(el.dataset.v, +el.dataset.row||0, el.dataset.k); break;
+    case 'deltx': { const t=F.data.tx.find(x=>x.row===+el.dataset.row); if(!t||!confirm(`Xoá giao dịch ${t['Loại']} ${money(t['Số tiền'])} ngày ${t['Ngày']}?`)) break;
+      call('deleteTx',F.pin,{row:t.row,orig:{'Ngày':t['Ngày'],'Số tiền':t['Số tiền'],'Loại':t['Loại']}})
+        .then(()=>{document.getElementById('fdlg').close(); toast('Đã xoá giao dịch'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break; }
+    case 'delfix': { const x=F.data.recurring.find(r=>r.row===+el.dataset.row); if(!x||!confirm(`Xoá khoản cố định "${x['Tên']}"? (các giao dịch đã ghi vẫn giữ)`)) break;
+      call('setRecurring',F.pin,{row:x.row,ten:x['Tên'],action:'delete'}).then(()=>{document.getElementById('fdlg').close(); toast('Đã xoá'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break; }
+    case 'fixtoggle': { const x=F.data.recurring.find(r=>r.row===+el.dataset.row); if(!x) break; const on=x['Đang bật']!=='Không';
+      call('setRecurring',F.pin,{row:x.row,ten:x['Tên'],action:on?'off':'on'}).then(()=>{toast(on?'Đã tắt':'Đã bật'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break; }
+    case 'bioOn': bioEnable().then(()=>{toast('Đã bật mở khoá bằng vân tay'); render();}).catch(err=>toast('Không bật được: '+(err.message||err))); break;
+    case 'bioOff': bioDisable(); toast('Đã tắt vân tay'); render(); break;
+    case 'bioUnlock': bioUnlock().then(pin=>{F.pin=pin; F.err=''; F.data=null; render();}).catch(err=>{F.err=(err&&err.name==='NotAllowedError')?'Đã huỷ quét vân tay':(err.message||String(err)); render();}); break;
   }
 });
 document.addEventListener('change',e=>{ if(e.target.dataset.act==='month'){S.month=e.target.value;render();} });
@@ -986,11 +1090,11 @@ const dlg=document.getElementById('dlg'), form=document.getElementById('addForm'
 function openAdd(){ form.reset(); const n=new Date();
   form.ngayLam.value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
   if(S.day){const d=nd(S.day); form.deadline.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-  dlg.showModal(); form.task.focus(); }
+  moneyfy(form); dlg.showModal(); form.task.focus(); }
 form.addEventListener('submit',async e=>{
   if(e.submitter&&e.submitter.value==='cancel') return; e.preventDefault();
   const b=document.getElementById('saveBtn'); b.disabled=true;
-  try{ await call('addPersonalTask',Object.fromEntries(new FormData(form).entries())); dlg.close(); toast('Đã thêm vào sheet cá nhân'); load(true); }
+  try{ await call('addPersonalTask',moneyVals(Object.fromEntries(new FormData(form).entries()),form)); dlg.close(); toast('Đã thêm vào sheet cá nhân'); load(true); }
   catch(err){ toast('Lỗi: '+(err.message||err)); } finally{ b.disabled=false; }
 });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&DATA) load(true); });
@@ -1031,7 +1135,10 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
     finStatus:()=>({hasPin:!!FD.pin}),
     setFinPin:(o,n)=>{FD.pin=n;return true;},
     getFinance:p=>{if(p!==FD.pin) throw new Error('Sai PIN'); return JSON.parse(JSON.stringify(FD.data));},
-    addTx:(p,t)=>{FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':t.ngay.split('-').reverse().join('/'),'Loại':t.loai,'Số tiền':+t.soTien,'Danh mục':t.danhMuc,'Tài khoản':t.taiKhoan,'Đối tượng':t.doiTuong,'Ghi chú':t.ghiChu});return 1;},
+    updateTx:(p,x)=>{const t=FD.data.tx.find(r=>r.row===x.row); Object.assign(t,{'Ngày':x.ngay.split('-').reverse().join('/'),'Loại':x.loai,'Số tiền':+x.soTien,'Danh mục':x.danhMuc,'Tài khoản':x.taiKhoan,'Đối tượng':x.doiTuong,'Ghi chú':x.ghiChu}); return true;},
+    deleteTx:(p,x)=>{FD.data.tx=FD.data.tx.filter(r=>r.row!==x.row); return true;},
+    setRecurring:(p,x)=>{const r=FD.data.recurring.find(q=>q.row===x.row); if(x.action==='delete') FD.data.recurring=FD.data.recurring.filter(q=>q!==r); else if(x.action==='update'){r['Số tiền']=+x.soTien; r['Ngày trong tháng']=+x.ngay; r['Tên']=x.ten2;} else r['Đang bật']=x.action==='on'?'Có':'Không'; return true;},
+    addTx:(p,t)=>{if(t.coDinh) FD.data.recurring.push({row:FD.data.recurring.length+2,'Tên':t.doiTuong||t.danhMuc,'Loại':t.loai,'Số tiền':+t.soTien,'Danh mục':t.danhMuc,'Tài khoản':t.taiKhoan,'Ngày trong tháng':+t.ngay.slice(8),'Đang bật':'Có','Đã ghi đến':t.ngay.slice(5,7)+'/'+t.ngay.slice(0,4)}); FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':t.ngay.split('-').reverse().join('/'),'Loại':t.loai,'Số tiền':+t.soTien,'Danh mục':t.danhMuc,'Tài khoản':t.taiKhoan,'Đối tượng':t.doiTuong,'Ghi chú':t.ghiChu});return 1;},
     addDebt:(p,d)=>{FD.data.debts.push({row:FD.data.debts.length+2,'Ngày':f(0),'Người':d.nguoi,'Chiều':d.chieu,'Số tiền':+d.soTien,'Đã trả':0,'Hạn trả':d.hanTra?d.hanTra.split('-').reverse().join('/'):'','Ghi chú':d.ghiChu});return 1;},
     payDebt:(p,x)=>{const r=FD.data.debts.find(d=>d.row===x.row);r['Đã trả']+=+x.soTien;const me=r['Chiều']==='Người khác nợ mình';
       FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':me?'Thu':'Chi','Số tiền':+x.soTien,'Danh mục':me?'Thu nợ':'Trả nợ','Tài khoản':x.taiKhoan,'Đối tượng':x.nguoi,'Ghi chú':'Công nợ'});return 1;},
@@ -1044,7 +1151,8 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
       if(0)
       FD.data.tx.push({row:FD.data.tx.length+2,'Ngày':f(0),'Loại':'Thu','Số tiền':r['Thực nhận'],'Danh mục':'Lương','Tài khoản':x.taiKhoan,'Đối tượng':r['Nguồn'],'Ghi chú':'Lương '+r['Tháng']});return 1;},
   };
-  var FD={pin:null,data:{url:'#',warnings:[],
+  var FD={pin:null,data:{url:'#',warnings:[],posted:0,
+    recurring:[{row:2,'Tên':'Adobe Creative Cloud','Loại':'Chi','Số tiền':1200000,'Danh mục':'Thiết bị/Phần mềm','Tài khoản':'Ngân hàng','Ngày trong tháng':5,'Đang bật':'Có','Đã ghi đến':f(0).slice(3)},{row:3,'Tên':'Lương CBBS','Loại':'Lương','Số tiền':14500000,'Ngày trong tháng':10,'Đang bật':'Có','Đã ghi đến':f(0).slice(3)}],
     lists:{types:['Thu','Chi'],catChi:['Ăn uống','Đi lại','Nhà ở','Hoá đơn','Mua sắm','Thiết bị/Phần mềm','Sức khoẻ','Gia đình','Giải trí','Học tập','Trả nợ','Khác'],catThu:['Lương','Freelance','Thưởng','Thu nợ','Khác'],accounts:['Tiền mặt','Ngân hàng','Ví điện tử'],debtDirs:['Người khác nợ mình','Mình nợ người khác']},
     accounts:[{'Tài khoản':'Tiền mặt','Số dư đầu':2000000},{'Tài khoản':'Ngân hàng','Số dư đầu':15000000},{'Tài khoản':'Ví điện tử','Số dư đầu':500000}],
     budget:[{'Danh mục':'Ăn uống','Hạn mức tháng':4000000},{'Danh mục':'Đi lại','Hạn mức tháng':1000000},{'Danh mục':'Thiết bị/Phần mềm','Hạn mức tháng':1500000},{'Danh mục':'Giải trí','Hạn mức tháng':800000}],
