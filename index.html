@@ -274,6 +274,7 @@ tr.tx-off td{opacity:.45;text-decoration:line-through} tr.tx-info td{opacity:.7}
 .src-ch{font-size:12px;color:#cfc6b6;margin-top:8px;line-height:1.6}
 .sbadge{font-size:11.5px;padding:3px 10px;border-radius:999px;white-space:nowrap;border:1px solid var(--line)}
 .s-ok{color:#9fdcae;border-color:rgba(159,220,174,.4);background:rgba(159,220,174,.08)} .s-wait{color:var(--amber);border-color:rgba(231,200,121,.4)}
+@media (max-width:560px){table.rct th:nth-child(2),table.rct td:nth-child(2),table.rct th:nth-child(4),table.rct td:nth-child(4),table.rct th:nth-child(5),table.rct td:nth-child(5){display:none}}
 .s-off{color:var(--muted)} .s-err{color:var(--red);border-color:rgba(255,138,122,.45)} .s-file{color:#a9c4dc;border-color:rgba(169,196,220,.4)}
 .tx-meta{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px} .tx-meta span{padding:2px 8px;border-radius:999px;background:rgba(217,192,138,.08);color:#d8ccb0}
 details summary{cursor:pointer;color:var(--lime);font-size:13px} .hist{font-size:12px;color:var(--muted);max-height:160px;overflow:auto;margin-top:6px;line-height:1.6}
@@ -1153,7 +1154,8 @@ function vFinSources(c){
       <small>${esc(sub)}</small>
       <div class="src-ch">${kind==='Ngân hàng'
         ?'Thông báo app (Android) · Email biến động số dư · Sao kê CSV (GĐ6)'
-        :'Thông báo app (Android) · Email biên nhận · <span class="sbadge s-file">Cần nhập file</span> cho phí & tiền thực nhận'}</div></div>`;};
+        :name==='Grab'?'Bạn là khách: biên nhận chuyến xe / GrabFood qua email · Thông báo app (Android)'
+          :'Bạn là người mua: email xác nhận đơn / hoàn tiền · Thông báo app (Android)'}</div></div>`;};
   return `<div class="panel dev"><div class="src-h"><b>${ico('plug',18)} Mã thiết bị (điện thoại Android + cầu nối email)</b>
       <span class="sbadge s-${dev.hasToken?'ok':'off'}">${dev.hasToken?'Đã tạo':'Chưa tạo'}</span></div>
     <small>${dev.hasToken?`Tạo lúc ${esc(dev.created)}${dev.lastSeen?` · nhận dữ liệu lần cuối ${esc(dev.lastSeen)}`:' · chưa nhận dữ liệu nào'}`:'Mã riêng để điện thoại / Gmail gửi giao dịch vào. Khác mã truy cập web, chỉ được gửi dữ liệu, thu hồi được bất cứ lúc nào.'}</small>
@@ -1167,22 +1169,27 @@ function vFinSources(c){
       <button class="btn-line ok" data-act="testparse">Thử nhận diện</button><div id="tpOut" class="full"></div></div>
     <p class="hint">App Android đồng hành: giai đoạn 5 (chưa có). Cầu nối email: cài theo hướng dẫn trong <b>docs/HUONG-DAN-FINANCE-2.0.md</b>.</p>`;
 }
-/* ---------- ĐỐI SOÁT (nền tảng ↔ tiền về ngân hàng) ---------- */
+/* ---------- ĐỐI SOÁT (đơn mua trên sàn / Grab ↔ tiền trừ ngân hàng) ---------- */
 function vFinRecon(c){
-  const P=[['Shopee',/shopee/i],['Grab',/grab/i],['TikTok Shop',/tiktok/i]], inM=t=>Math.floor((toNum(t['Ngày'])||0)/100)===c.ym;
-  const rows=P.map(([name,re])=>{
-    const pl=c.all.filter(t=>inM(t)&&srcName(t)===name&&isConfirmed(t));
-    const rev=pl.filter(t=>t['Loại chi tiết']==='Thu').reduce((s,t)=>s+num(t['Số tiền']),0);
-    const fee=pl.filter(t=>t['Loại chi tiết']==='Phí').reduce((s,t)=>s+num(t['Số tiền']),0);
-    const ref=pl.filter(t=>t['Loại chi tiết']==='Hoàn tiền').reduce((s,t)=>s+num(t['Số tiền']),0);
-    const bank=c.all.filter(t=>inM(t)&&isConfirmed(t)&&t['Loại']==='Thu'&&!re.test(srcName(t))&&re.test([t['Ghi chú'],t['Đối tượng']].join(' ')));
-    const got=bank.reduce((s,t)=>s+num(t['Số tiền']),0), exp=rev-fee;
-    const unmatched=c.all.filter(t=>inM(t)&&srcName(t)===name&&t['Trạng thái']==='Chờ xác nhận').length;
-    return {name,rev,fee,ref,exp,got,diff:got-exp,unmatched,n:pl.length};});
-  return `<p class="hint">Đối chiếu tiền nền tảng báo với tiền thực về ngân hàng (nội dung chuyển khoản có chữ Shopee / Grab / TikTok). <b>Số liệu phí & doanh thu chỉ đầy đủ khi nhập file báo cáo của nền tảng (giai đoạn 6).</b></p>
-    <div class="panel"><table><tr><th>Nền tảng</th><th class="n">Doanh thu</th><th class="n">Phí</th><th class="n">Hoàn tiền</th><th class="n">Thực nhận dự kiến</th><th class="n">Đã về NH</th><th class="n">Chênh lệch</th><th class="n">Chưa khớp</th></tr>
-    ${rows.map(r=>`<tr><td><b>${r.name}</b>${r.n?'':'<br><small style="color:var(--muted)">chưa có dữ liệu</small>'}</td><td class="n amt">${fm(r.rev)}</td><td class="n amt">${fm(r.fee)}</td><td class="n amt">${fm(r.ref)}</td>
-      <td class="n amt">${fm(r.exp)}</td><td class="n amt in">${fm(r.got)}</td><td class="n amt ${r.diff<0?'red':''}">${r.diff>=0?'+':''}${fm(r.diff)}</td><td class="n">${r.unmatched}</td></tr>`).join('')}</table></div>`;
+  const P=['Shopee','TikTok Shop','Grab'], inM=t=>Math.floor((toNum(t['Ngày'])||0)/100)===c.ym, live=t=>!/Đã huỷ|Trùng/.test(t['Trạng thái']||'');
+  const rows=P.map(name=>{
+    const l=c.all.filter(t=>inM(t)&&srcName(t)===name&&live(t)), sum=a=>a.reduce((s,t)=>s+num(t['Số tiền']),0);
+    const matched=l.filter(t=>t['Loại chi tiết']==='Đơn hàng'), own=l.filter(t=>t['Loại chi tiết']==='Chi'&&isConfirmed(t)),
+          wait=l.filter(t=>t['Loại chi tiết']==='Chi'&&t['Trạng thái']==='Chờ xác nhận'), ref=l.filter(t=>t['Loại chi tiết']==='Hoàn tiền');
+    return {name,n:matched.length+own.length+wait.length,total:sum(matched)+sum(own)+sum(wait),matched:sum(matched),own:sum(own),wait,ref:sum(ref)};});
+  const waits=txSort(rows.flatMap(r=>r.wait));
+  return `<p class="hint">Bạn là <b>người mua</b> trên Shopee / TikTok Shop và <b>khách</b> đi xe, đặt đồ ăn trên Grab. Mỗi đơn chỉ tính chi <b>1 lần</b>:
+    nếu thấy tiền trừ ngân hàng cùng số tiền (Grab trong 12 giờ, sàn trong 3 ngày) thì dòng ngân hàng là khoản chi, email đơn chỉ là chứng từ.
+    Đơn chưa khớp có thể đã trả bằng ví / tiền mặt / COD → bấm Xác nhận.</p>
+    <div class="panel"><table class="rct"><tr><th>Nền tảng</th><th class="n">Đơn</th><th class="n">Tổng đơn</th><th class="n">Khớp NH</th><th class="n">Ví / tiền mặt</th><th class="n">Chưa khớp</th><th class="n">Hoàn tiền</th></tr>
+    ${rows.map(r=>`<tr><td><b>${r.name}</b>${r.n?'':'<br><small style="color:var(--muted)">chưa có dữ liệu</small>'}</td><td class="n">${r.n}</td><td class="n amt">${fm(r.total)}</td>
+      <td class="n amt">${fm(r.matched)}</td><td class="n amt">${fm(r.own)}</td><td class="n amt ${r.wait.length?'red':''}">${fm(r.wait.reduce((s,t)=>s+num(t['Số tiền']),0))}${r.wait.length?` · ${r.wait.length}`:''}</td>
+      <td class="n amt in">${fm(r.ref)}</td></tr>`).join('')}</table></div>
+    ${waits.length?`<div class="sec-t">Đơn chưa thấy tiền trừ ngân hàng</div>${waits.map(t=>`<div class="panel pend"><div><b>${esc(srcName(t))}</b> · ${esc(String(t['Ngày']))} ${esc(t['Giờ']||'')} · <span class="amt">${fm(num(t['Số tiền']))}</span>
+        <br><small>${esc(t['Danh mục']||'')} · ${esc(String(t['Ghi chú']||'').slice(0,140))}</small></div>
+      <div class="row"><button class="btn-line ok" data-act="txact" data-a="confirm" data-id="${esc(t['Mã GD'])}">Trả ví / tiền mặt</button>
+        <button class="btn-line" data-act="txact" data-a="duplicate" data-id="${esc(t['Mã GD'])}">Trùng</button>
+        <button class="btn-line warn" data-act="txact" data-a="void" data-id="${esc(t['Mã GD'])}">Huỷ</button></div></div>`).join('')}`:''}`;
 }
 /* ---------- BÁO CÁO + XUẤT CSV ---------- */
 const RP={per:'month',by:'src',at:''};
@@ -1554,8 +1561,9 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
   auto({'Mã GD':'GDAUTO4','Ngày':f(-2),'Giờ':'16:00','Loại':'Chi','Số tiền':2000000,'Tài khoản':'Techcombank ••4567','Nguồn':'Techcombank (thông báo)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Chuyển nội bộ','Ghi chú':'CHUYEN TIEN SANG OCB','TK (4 số cuối)':'4567'});
   auto({'Mã GD':'GDAUTO5','Ngày':f(-2),'Giờ':'16:02','Loại':'Thu','Số tiền':2000000,'Tài khoản':'OCB ••8899','Nguồn':'OCB (thông báo)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Chuyển nội bộ','Ghi chú':'CHUYEN TIEN TU TCB · Chuyển nội bộ với GDAUTO4','TK (4 số cuối)':'8899','Số dư sau GD':4300000});
   auto({'Mã GD':'GDAUTO6','Ngày':f(-3),'Giờ':'10:01','Loại':'Thu','Số tiền':3500000,'Danh mục':'Freelance','Tài khoản':'Techcombank ••4567','Nguồn':'Techcombank (thông báo)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Thu','Ghi chú':'SHOPEE THANH TOAN DOANH THU'});
-  auto({'Mã GD':'GDAUTO7','Ngày':f(-4),'Giờ':'09:12','Loại':'Thu','Số tiền':3900000,'Danh mục':'Freelance','Tài khoản':'Shopee','Nguồn':'Shopee (thông báo)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Thu','Ghi chú':'Doanh thu đã chuyển'});
-  auto({'Mã GD':'GDAUTO8','Ngày':f(-4),'Giờ':'09:12','Loại':'Chi','Số tiền':390000,'Danh mục':'Phí nền tảng','Tài khoản':'Shopee','Nguồn':'Shopee (thông báo)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Phí','Ghi chú':'Phí dịch vụ'});
+  auto({'Mã GD':'GDAUTO7','Ngày':f(-4),'Giờ':'09:12','Loại':'Chi','Số tiền':259000,'Danh mục':'Mua sắm','Tài khoản':'Techcombank ••4567','Nguồn':'Techcombank (thông báo)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Chi','Ghi chú':'SHOPEEPAY THANH TOAN DON HANG · Khớp đơn GDAUTO8'});
+  auto({'Mã GD':'GDAUTO8','Ngày':f(-4),'Giờ':'09:10','Loại':'Chi','Số tiền':259000,'Danh mục':'Mua sắm','Tài khoản':'Shopee','Nguồn':'Shopee (email)','Trạng thái':'Đã xác nhận','Loại chi tiết':'Đơn hàng','Ghi chú':'Đơn hàng 241127ABCD99 · Đã khớp tiền trừ GDAUTO7'});
+  auto({'Mã GD':'GDAUTO9','Ngày':f(-1),'Giờ':'19:40','Loại':'Chi','Số tiền':189000,'Danh mục':'Mua sắm','Tài khoản':'TikTok Shop','Nguồn':'TikTok Shop (email)','Trạng thái':'Chờ xác nhận','Loại chi tiết':'Chi','Ghi chú':'Mã đơn hàng 577912345678 · Chưa thấy tiền trừ ngân hàng – nếu trả bằng ví / tiền mặt thì bấm Xác nhận'});
   FD.data.sources=[{'Nguồn':'Techcombank','Lần nhận cuối':f(0)+' 14:35','Số sự kiện':12,'Số GD tạo':9},{'Nguồn':'OCB','Lần nhận cuối':f(-2)+' 16:02','Số sự kiện':3,'Số GD tạo':2},
     {'Nguồn':'HSBC'},{'Nguồn':'Shopee','Lần nhận cuối':f(-4)+' 09:12','Số sự kiện':5,'Số GD tạo':2},{'Nguồn':'Grab','Lần nhận cuối':f(-1)+' 20:15','Số sự kiện':2,'Số GD tạo':1,'Lỗi gần nhất':'','Lỗi lúc':''},{'Nguồn':'TikTok Shop'}];
   FD.data.history=[{'Lúc':f(-1)+' 09:00:00','Mã GD':'GDDEMO102','Hành động':'Sửa','Trường':'Số tiền','Giá trị cũ':'1200000','Giá trị mới':'1350000'}];
