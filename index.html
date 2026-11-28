@@ -269,6 +269,8 @@ tr.tx-off td{opacity:.45;text-decoration:line-through} tr.tx-info td{opacity:.7}
 .pend-top b{font-size:18px} .pend-desc{margin:8px 0;font-size:14px} .pend-desc small{color:var(--muted)}
 .pend .row,.dev .row,.src-card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.gm .gm-k{margin:12px 0 10px} .gm .gm-iv{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)} .gm .gm-iv select{width:auto}
+.gm-log{overflow-x:auto;margin-top:10px} table.gml{font-size:12.5px;min-width:620px}
 .src-card,.dev{padding:14px 16px} .src-card small,.dev small{display:block;color:var(--muted);font-size:12.5px;margin-top:6px}
 .src-h{display:flex;justify-content:space-between;gap:10px;align-items:center} .src-h b{display:flex;gap:8px;align-items:center}
 .src-ch{font-size:12px;color:#cfc6b6;margin-top:8px;line-height:1.6}
@@ -568,6 +570,7 @@ const ICON={
   plus:'<path d="M12 5v14M5 12h14"/>',
   download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   plug:'<path d="M12 22v-5"/><path d="M9 8V2M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
   wallet:'<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v4"/><rect x="3.5" y="7.5" width="17" height="12" rx="2.5"/><path d="M16 13.5h2"/>',
@@ -1147,6 +1150,33 @@ function srcStatus(name,kind){
   if(!dev.hasToken) return ['off','Chưa cấp quyền','Chưa tạo mã thiết bị cho điện thoại / cầu nối email'];
   return ['wait','Chờ dữ liệu','Đã có mã thiết bị, chưa nhận được thông báo / email nào'];
 }
+/* ---------- GMAIL: trạng thái thật từ server (lần quét gần nhất, nhật ký, email cần xem lại) ---------- */
+let G_LOG=false;
+function vGmail(c){
+  const g=F.data.gmail||{state:'off',review:[],log:[]}, st=(g.last&&g.last.stats)||{};
+  const badge={ok:['ok','Đã kết nối'],stale:['wait','Mất kết nối'],err:['err','Lỗi'],off:['off','Chưa kết nối']}[g.state]||['off','Chưa kết nối'];
+  const pend=c.all.filter(t=>t['Trạng thái']==='Chờ xác nhận'&&/\(email\)/.test(t['Nguồn']||'')).length;
+  const newMail=g.last?Math.max(0,(st.received||0)-(st.seen||0)):0;
+  const sub=g.state==='off'?'Chưa nhận được tín hiệu từ cầu nối Gmail. Cài theo hướng dẫn: docs/HUONG-DAN-FINANCE-2.0.md mục "Cầu nối Gmail".'
+    :g.state==='stale'?`Không thấy cầu nối Gmail chạy từ ${esc(g.lastPing||g.lastCheck)} – kiểm tra trigger trong Apps Script của Gmail.`
+    :`Quét lần cuối ${esc(g.lastCheck||'—')}${g.last&&g.last.manual?' (kiểm tra ngay)':''} · ${g.last?g.last.scanned:0} email khớp bộ lọc · tự quét mỗi ${g.intervalMin} phút`;
+  const kpi=(v,l,cls='')=>`<div class="panel kpi ${cls}"><b>${v}</b><span>${l}</span></div>`;
+  const logRows=(g.log||[]).map(r=>`<tr><td>${esc(r['Lúc'])}</td><td>${esc(r['Kênh'])}</td><td class="n">${num(r['Email mới'])}</td><td class="n">${num(r['GD đã ghi'])}</td><td class="n">${num(r['Chờ xác nhận'])}</td><td class="n">${num(r['Cần xem lại'])}</td><td class="n">${num(r['Trùng'])}</td><td class="n ${num(r['Lỗi'])?'red':''}">${num(r['Lỗi'])}</td><td><small>${esc(r['Ghi chú']||'')}</small></td></tr>`).join('');
+  return `<div class="panel dev gm"><div class="src-h"><b>${ico('mail',18)} Gmail – email ngân hàng & biên nhận</b><span class="sbadge s-${badge[0]}">${badge[1]}</span></div>
+    <small>${sub}</small>
+    ${g.lastError&&g.state==='err'?`<p class="red" style="margin:8px 0 0">Lỗi lúc ${esc(g.lastError.at)}: ${esc(g.lastError.error)}</p>`:''}
+    ${g.checkNowPending?`<p class="hint" style="margin:8px 0 0">⏳ Đã gửi yêu cầu kiểm tra – cầu nối Gmail sẽ quét trong vòng ~5 phút (Gmail không có webhook miễn phí).</p>`:''}
+    <div class="kpis6 gm-k">${kpi(newMail,'Email mới (lần quét cuối)')}${kpi(num(st.created),'GD đã ghi (lần quét cuối)','pos')}${kpi(pend,'GD email chờ xác nhận')}${kpi((g.review||[]).length,'Email lỗi / cần xem lại',(g.review||[]).length?'neg':'')}</div>
+    <div class="row"><button class="btn-lime" data-act="gmailnow">${ico('search',14)} Kiểm tra Gmail ngay</button>
+      <button class="btn-line" data-act="gmailresync">↻ Đồng bộ lại email lỗi</button>
+      <button class="btn-line" data-act="gmaillog">${G_LOG?'Ẩn':'Xem'} lịch sử đồng bộ</button>
+      <label class="gm-iv">Tự quét mỗi <select data-gmint>${[5,10,15,30,60].map(n=>`<option value="${n}" ${n===g.intervalMin?'selected':''}>${n} phút</option>`).join('')}</select></label></div>
+    ${G_LOG?`<div class="gm-log"><table class="gml"><tr><th>Lúc</th><th>Kênh</th><th class="n">Mới</th><th class="n">Ghi</th><th class="n">Chờ</th><th class="n">Xem lại</th><th class="n">Trùng</th><th class="n">Lỗi</th><th>Ghi chú</th></tr>${logRows||'<tr><td colspan="9" class="empty">Chưa có lần đồng bộ nào có email mới</td></tr>'}</table></div>`:''}
+    ${(g.review||[]).length?`<div class="sec-t">Email cần xem lại (không tự ghi vì thiếu dữ liệu / không chắc chắn)</div>
+      ${g.review.map(r=>`<div class="pend"><div><b>${esc(r.from.replace(/^Email /,''))}</b> · ${esc(r.time)}<br><small class="red">${esc(r.reason)}</small><br><small>${esc(r.title)} — ${esc(r.text.slice(0,160))}</small></div>
+        <div class="row"><button class="btn-line" data-act="revignore" data-id="${esc(r.id)}">Bỏ qua</button></div></div>`).join('')}`:''}
+  </div>`;
+}
 function vFinSources(c){
   const d=F.data, dev=d.device||{};
   const card=([name,kind])=>{const [k,lbl,sub]=srcStatus(name,kind);
@@ -1156,7 +1186,7 @@ function vFinSources(c){
         ?'Thông báo app (Android) · Email biến động số dư · Sao kê CSV (GĐ6)'
         :name==='Grab'?'Bạn là khách: biên nhận chuyến xe / GrabFood qua email · Thông báo app (Android)'
           :'Bạn là người mua: email xác nhận đơn / hoàn tiền · Thông báo app (Android)'}</div></div>`;};
-  return `<div class="panel dev"><div class="src-h"><b>${ico('plug',18)} Mã thiết bị (điện thoại Android + cầu nối email)</b>
+  return `${vGmail(c)}<div class="panel dev"><div class="src-h"><b>${ico('plug',18)} Mã thiết bị (điện thoại Android + cầu nối email)</b>
       <span class="sbadge s-${dev.hasToken?'ok':'off'}">${dev.hasToken?'Đã tạo':'Chưa tạo'}</span></div>
     <small>${dev.hasToken?`Tạo lúc ${esc(dev.created)}${dev.lastSeen?` · nhận dữ liệu lần cuối ${esc(dev.lastSeen)}`:' · chưa nhận dữ liệu nào'}`:'Mã riêng để điện thoại / Gmail gửi giao dịch vào. Khác mã truy cập web, chỉ được gửi dữ liệu, thu hồi được bất cứ lúc nào.'}</small>
     <div class="row"><button class="btn-lime" data-act="devtoken">${dev.hasToken?'Tạo mã mới (mã cũ hết hạn)':'Tạo mã thiết bị'}</button>
@@ -1430,9 +1460,18 @@ document.addEventListener('click',e=>{
       call('revokeDeviceToken',F.pin).then(()=>{toast('Đã thu hồi mã'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break;
     case 'testparse': { const out=document.getElementById('tpOut'); out.innerHTML='Đang nhận diện…';
       call('testParse',F.pin,{app:document.getElementById('tpApp').value,title:'',text:document.getElementById('tpText').value,postedAt:Date.now()})
-        .then(p=>{out.innerHTML=p.skip?'<p class="red">Có OTP / mật khẩu → hệ thống bỏ qua, không lưu.</p>'
+        .then(p=>{out.innerHTML=p.skip?`<p class="red">${p.skip==='otp'?'Có OTP / mật khẩu → hệ thống bỏ qua, không lưu.':esc('Bỏ qua: '+(p.reason||''))}</p>`
+          :p.review?`<p class="red">Cần xem lại (không tự ghi): ${esc(p.review)}</p>`
           :`<table class="tp">${[['Nguồn',p.source],['Số tiền',p.amount===null?'— (không đủ căn cứ, sẽ không tạo GD)':money(p.amount)],['Thu/Chi',p.dir||'—'],['Loại chi tiết',p.detail||'—'],['Danh mục',p.category||'—'],['TK 4 số cuối',p.last4||'—'],['Mã tham chiếu',p.ref||'—'],['Số dư',p.balance?money(p.balance):'—'],['Độ tin cậy',p.confidence+' · '+p.reason]].map(([k,v])=>`<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join('')}</table>`;})
         .catch(err=>{out.innerHTML=`<p class="red">${esc(err.message||err)}</p>`;}); break; }
+    case 'gmailnow': el.disabled=true; call('gmailCheckNow',F.pin).then(r=>{toast('Đã gửi yêu cầu – Gmail sẽ được quét trong vòng ~5 phút'); finLoad();})
+      .catch(err=>{el.disabled=false; toast('Lỗi: '+(err.message||err));}); break;
+    case 'gmailresync': el.disabled=true; el.textContent='Đang đồng bộ lại…';
+      call('resyncReview',F.pin).then(r=>{toast(`Đồng bộ lại ${r.received} email: ghi ${r.created} GD, còn ${r.review} cần xem lại, bỏ qua ${r.skipped+r.stored}`); finLoad();})
+      .catch(err=>{el.disabled=false; el.textContent='↻ Đồng bộ lại email lỗi'; toast('Lỗi: '+(err.message||err));}); break;
+    case 'gmaillog': G_LOG=!G_LOG; render(); break;
+    case 'revignore': if(!confirm('Bỏ qua email này? (không tạo giao dịch, vẫn giữ trong nhật ký)')) break;
+      call('ignoreReview',F.pin,el.dataset.id).then(()=>{toast('Đã bỏ qua'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break;
     case 'delfix': { const x=F.data.recurring.find(r=>r.row===+el.dataset.row); if(!x||!confirm(`Xoá khoản cố định "${x['Tên']}"? (các giao dịch đã ghi vẫn giữ)`)) break;
       call('setRecurring',F.pin,{row:x.row,ten:x['Tên'],action:'delete'}).then(()=>{document.getElementById('fdlg').close(); toast('Đã xoá'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break; }
     case 'fixtoggle': { const x=F.data.recurring.find(r=>r.row===+el.dataset.row); if(!x) break; const on=x['Đang bật']!=='Không';
@@ -1443,7 +1482,8 @@ document.addEventListener('click',e=>{
   }
 });
 document.addEventListener('change',e=>{ if(e.target.dataset.act==='month'){S.month=e.target.value;render();}
-  const rp=e.target.dataset.rp; if(rp){ RP[rp]=e.target.value; render(); } });
+  const rp=e.target.dataset.rp; if(rp){ RP[rp]=e.target.value; render(); }
+  if(e.target.dataset.gmint!==undefined){ call('setGmailInterval',F.pin,+e.target.value).then(n=>{toast('Gmail sẽ tự quét mỗi '+n+' phút'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); } });
 let ffT; document.addEventListener('input',e=>{ const k=e.target.dataset.ff; if(!k) return; FF[k]=e.target.value;
   try{sessionStorage.setItem('cv_ff',JSON.stringify(FF))}catch(_){}
   clearTimeout(ffT); ffT=setTimeout(()=>{const box=document.getElementById('txList'); if(box&&F.data) box.innerHTML=txListHtml(finCalc());}, k==='q'?250:0); });
@@ -1568,12 +1608,21 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
     {'Nguồn':'HSBC'},{'Nguồn':'Shopee','Lần nhận cuối':f(-4)+' 09:12','Số sự kiện':5,'Số GD tạo':2},{'Nguồn':'Grab','Lần nhận cuối':f(-1)+' 20:15','Số sự kiện':2,'Số GD tạo':1,'Lỗi gần nhất':'','Lỗi lúc':''},{'Nguồn':'TikTok Shop'}];
   FD.data.history=[{'Lúc':f(-1)+' 09:00:00','Mã GD':'GDDEMO102','Hành động':'Sửa','Trường':'Số tiền','Giá trị cũ':'1200000','Giá trị mới':'1350000'}];
   FD.data.device={hasToken:true,created:f(-5)+' 10:00',lastSeen:f(0)+' 14:35'};
+  FD.data.gmail={state:'ok',intervalMin:5,lastCheck:f(0)+' 14:35',lastPing:f(0)+' 14:35',checkNowPending:false,lastError:null,
+    last:{scanned:6,manual:false,stats:{received:3,seen:1,created:1,pending:0,review:1,skipped:0,dup:0,stored:0,errors:0}},
+    review:[{id:'mail-demo1',from:'Email HSBC@notification.hsbc.com.hk',time:f(-2)+' 21:21',title:'[TB/Alert] Giao dịch được thực hiện với Thẻ TD HSBC',
+      reason:'HSBC: giao dịch ngoại tệ 7.99 USD – chưa biết số VND thực trừ',text:'thẻ tín dụng X3710 vừa thực hiện giao dịch với số tiền 7.99 USD tại Adobe…'}],
+    log:[{'Lúc':f(0)+' 14:35','Kênh':'Gmail','Email mới':2,'GD đã ghi':1,'Chờ xác nhận':0,'Cần xem lại':1,'Trùng':0,'Lỗi':0,'Ghi chú':''}]};
   Object.assign(FD.data.lists,{status:['Đã xác nhận','Chờ xác nhận','Đã huỷ','Trùng'],detail:['Thu','Chi','Chuyển nội bộ','Hoàn tiền','Phí','Đảo ngược','Đơn hàng'],sources:['Techcombank','OCB','HSBC','Shopee','Grab','TikTok Shop']});
   Object.assign(api,{
     setTxStatus:(p,x)=>{const t=FD.data.tx.find(r=>r['Mã GD']===x.id); if(x.action==='internal'){t['Loại chi tiết']='Chuyển nội bộ';t['Trạng thái']='Đã xác nhận';} else t['Trạng thái']={confirm:'Đã xác nhận',duplicate:'Trùng',void:'Đã huỷ',restore:'Đã xác nhận'}[x.action]; return true;},
     deleteTx:(p,x)=>{const t=FD.data.tx.find(r=>r['Mã GD']===x.id||r.row===x.row); t['Trạng thái']='Đã huỷ'; return true;},
     createDeviceToken:()=>({token:'demo'+Math.random().toString(16).slice(2)+Math.random().toString(16).slice(2),url:'#'}),
     revokeDeviceToken:()=>{FD.data.device={hasToken:false}; return true;},
+    gmailCheckNow:()=>{FD.data.gmail.checkNowPending=true; return {ok:true};},
+    setGmailInterval:(p,n)=>{FD.data.gmail.intervalMin=n; return n;},
+    resyncReview:()=>({received:1,created:0,pending:0,review:1,skipped:0,stored:0,dup:0,seen:0,errors:0}),
+    ignoreReview:(p,id)=>{FD.data.gmail.review=FD.data.gmail.review.filter(r=>r.id!==id); return true;},
     testParse:(p,ev)=>/otp/i.test(ev.text)?{skip:'otp'}:{source:/ocb/i.test(ev.app)?'OCB':'Techcombank',amount:1250000,dir:'Chi',detail:'Chi',category:'Thiết bị/Phần mềm',last4:'4567',ref:'FT25331123456',balance:23456789,confidence:'cao',reason:'(dữ liệu mẫu)'}
   });
   return api;})();
