@@ -269,6 +269,10 @@ tr.tx-off td{opacity:.45;text-decoration:line-through} tr.tx-info td{opacity:.7}
 .pend-top b{font-size:18px} .pend-desc{margin:8px 0;font-size:14px} .pend-desc small{color:var(--muted)}
 .pend .row,.dev .row,.src-card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.ocr-wait{display:grid;gap:10px} .ocr-prev img,.ocr-top img{max-height:260px;max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin:0 auto}
+.ocr-bar{height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden} .ocr-bar i{display:block;height:100%;width:0;background:var(--gold,#d9b46a);transition:width .2s}
+.ocr-top{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start;margin-bottom:10px} .ocr-top img{max-height:150px;margin:0}
+.ocr-txt{white-space:pre-wrap;font-size:12px;max-height:180px;overflow:auto;color:var(--muted)}
 .gm .gm-k{margin:12px 0 10px} .gm .gm-iv{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)} .gm .gm-iv select{width:auto}
 .gm-log{overflow-x:auto;margin-top:10px} table.gml{font-size:12.5px;min-width:620px}
 .src-card,.dev{padding:14px 16px} .src-card small,.dev small{display:block;color:var(--muted);font-size:12.5px;margin-top:6px}
@@ -548,6 +552,7 @@ dialog::backdrop{background:rgba(0,0,0,.66);backdrop-filter:blur(4px)}
   </form>
 </dialog>
 <dialog id="fdlg"><form id="finForm" method="dialog"></form></dialog>
+<input type="file" id="ocrFile" accept="image/*" hidden>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -568,6 +573,7 @@ const ICON={
   check:'<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.8"/>',
   date:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4Z"/><circle cx="12" cy="13" r="3.5"/>',
   download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
@@ -940,7 +946,7 @@ async function finLoad(){
 const isConfirmed=t=>!t['Trạng thái']||t['Trạng thái']==='Đã xác nhận';
 const isCountable=t=>isConfirmed(t)&&!['Chuyển nội bộ','Đơn hàng','Đảo ngược'].includes(t['Loại chi tiết']);
 const txTime=t=>{const n=toNum(t['Ngày']); if(!n) return 0; const d=nd(n), m=String(t['Giờ']||'').match(/(\d{1,2}):(\d{2})/); if(m) d.setHours(+m[1],+m[2]); return d.getTime();};
-const srcName=t=>String(t['Nguồn']||'Thủ công').replace(/\s*\((thông báo|email)\)$/,'');
+const srcName=t=>String(t['Nguồn']||'Thủ công').replace(/\s*\((thông báo|email|ảnh)\)$/,'');
 function txSort(l){ return l.slice().sort((a,b)=>txTime(b)-txTime(a)||b.row-a.row); }
 function finCalc(){
   const d=F.data, ym=F.ym||Math.floor(TODAY()/100);
@@ -1004,7 +1010,8 @@ function vFinance(){
       <button class="btn-line" data-act="flock">${ico('lock',16)}Khoá</button>
       ${BIO.avail?`<button class="btn-line ${bioOn()?'':'ok'}" data-act="${bioOn()?'bioOff':'bioOn'}">👆 ${bioOn()?'Tắt vân tay':'Bật vân tay'}</button>`:''}
       <button class="btn-lime" data-act="fadd" data-v="tx-Chi">${ico('plus',16)}Khoản chi</button>
-      <button class="btn-line ok" data-act="fadd" data-v="tx-Thu">+ Khoản thu</button></div></div>
+      <button class="btn-line ok" data-act="fadd" data-v="tx-Thu">+ Khoản thu</button>
+      <button class="btn-line" data-act="ocrpick" title="Chụp / chọn ảnh màn hình giao dịch – app tự đọc">${ico('camera',16)} Từ ảnh</button></div></div>
     ${d.warnings.map(w=>`<div class="finwarn">⚠ ${esc(w)}</div>`).join('')}
     <div class="toolbar tabs fin-tabs">${tabs.map(([k,l])=>`<button class="${F.tab===k?'on':''}" data-act="ftab" data-v="${k}">${l}</button>`).join('')}</div>`;
   let body='';
@@ -1265,6 +1272,60 @@ function showToken(r){
     <div class="fbtns"><button class="btn-line" type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(r.token)}').then(()=>toast('Đã chép mã'))">Chép mã</button><button class="btn-lime" value="cancel" formnovalidate>Đã lưu mã</button></div>`;
   document.getElementById('fdlg').showModal(); finLoad();
 }
+/* ---------- THÊM GIAO DỊCH TỪ ẢNH CHỤP (OCR chạy NGAY TRÊN MÁY bằng Tesseract.js – ảnh không gửi đi đâu) ---------- */
+const OCR_SRC='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+function ocrLib(){ if(window.Tesseract) return Promise.resolve();
+  return new Promise((ok,ko)=>{const sc=document.createElement('script'); sc.src=OCR_SRC; sc.onload=ok;
+    sc.onerror=()=>ko(new Error('Không tải được bộ đọc chữ – lần đầu cần có mạng')); document.head.appendChild(sc);}); }
+/** Thu nhỏ ảnh (≤ 1800px) + chuyển xám cho đọc nhanh, chính xác hơn. */
+function ocrPrep(file){ return new Promise((ok,ko)=>{ const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{ const k=Math.min(1,1800/Math.max(im.width,im.height)), c=document.createElement('canvas');
+    c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); const g=c.getContext('2d'); g.filter='grayscale(1) contrast(1.15)';
+    g.drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(url); ok({canvas:c,preview:c.toDataURL('image/jpeg',.6)}); };
+  im.onerror=()=>ko(new Error('Không mở được ảnh')); im.src=url; }); }
+async function ocrRun(file){
+  const f=document.getElementById('finForm'); f.dataset.kind='ocr-wait';
+  f.innerHTML=`<h3>${ico('camera',18)} Đọc giao dịch từ ảnh</h3><div class="ocr-wait"><div class="ocr-prev" id="ocrPrev"></div>
+    <p id="ocrMsg">Đang mở ảnh…</p><div class="ocr-bar"><i id="ocrBar"></i></div>
+    <p class="hint">Chữ được đọc ngay trên máy này. Ảnh <b>không</b> gửi lên mạng; chỉ các thông tin bạn bấm Lưu mới ghi vào sheet.</p></div>
+    <div class="fbtns"><button class="btn-line" value="cancel" formnovalidate>Huỷ</button></div>`;
+  document.getElementById('fdlg').showModal();
+  const msg=t=>{const m=document.getElementById('ocrMsg'); if(m) m.textContent=t;}, bar=v=>{const b=document.getElementById('ocrBar'); if(b) b.style.width=v+'%';};
+  try{
+    const {canvas,preview}=await ocrPrep(file); document.getElementById('ocrPrev').innerHTML=`<img src="${preview}" alt="">`;
+    msg('Đang tải bộ đọc chữ tiếng Việt (lần đầu ~10 MB, các lần sau dùng lại)…'); await ocrLib();
+    const r=await Tesseract.recognize(canvas,'vie+eng',{logger:m=>{ if(m.status==='recognizing text'){msg('Đang đọc chữ… '+Math.round(m.progress*100)+'%'); bar(Math.round(m.progress*100));}
+      else if(/load/.test(m.status)) msg('Đang tải dữ liệu tiếng Việt… '+Math.round((m.progress||0)*100)+'%'); }});
+    const text=(r.data.text||'').replace(/[ \t]+/g,' ').trim(); if(!text) throw new Error('Không đọc được chữ nào trong ảnh');
+    msg('Đang nhận diện số tiền, ngày, nội dung…');
+    const app=/techcombank|\btcb\b/i.test(text)?'Techcombank':/\bocb\b/i.test(text)?'OCB':/hsbc/i.test(text)?'HSBC':/grab/i.test(text)?'Grab':/shopee/i.test(text)?'Shopee':/tiktok/i.test(text)?'TikTok Shop':'';
+    let p={}; try{ p=await call('testParse',F.pin,{app,title:'Ảnh chụp giao dịch',text,postedAt:Date.now()}); }catch(e){ p={}; }
+    if(p.skip==='otp') throw new Error('Ảnh có mã OTP / mật khẩu – app không xử lý ảnh này');
+    ocrForm(text,p,preview,app);
+  }catch(err){ msg('Lỗi: '+(err.message||err)); bar(0); }
+}
+function ocrForm(text,p,preview,app){
+  const L=F.data.lists, f=document.getElementById('finForm'), d=p.time?new Date(p.time):new Date(), pad=n=>String(n).padStart(2,'0');
+  const srcs=['Techcombank','OCB','HSBC','Shopee','Grab','TikTok Shop','Khác'], src=p.source&&p.source!=='Khác'?p.source:(app||'Khác');
+  const dir=p.dir||'Chi', cats=dir==='Thu'?L.catThu:L.catChi, sel=(a,v)=>a.map(x=>`<option ${x===v?'selected':''}>${esc(x)}</option>`).join('');
+  const warn=p.review||(!p.amount?'Chưa đọc được số tiền – hãy nhập tay':'')||(!p.dir?'Chưa rõ tiền vào hay ra – hãy chọn':'');
+  f.dataset.kind='ocr';
+  f.innerHTML=`<h3>${ico('camera',18)} Kiểm tra trước khi lưu</h3>
+    <div class="ocr-top"><img src="${preview}" alt=""><p class="hint">App đã đọc ảnh và điền sẵn. <b>Xem lại từng ô</b>, sửa nếu sai rồi bấm Lưu.${warn?`<br><span class="red">${esc(warn)}</span>`:''}</p></div>
+    <div class="fgrid"><input type="hidden" name="ocrText" value="${esc(text.slice(0,1500))}">
+      <label>Ngân hàng / ví<select name="src">${sel(srcs,src)}</select></label>
+      <label>Loại<select name="loai" onchange="this.form.danhMuc.innerHTML=(this.value==='Thu'?F.data.lists.catThu:F.data.lists.catChi).map(x=>'<option>'+x+'</option>').join('')">${sel(['Chi','Thu'],dir)}</select></label>
+      <label>Số tiền (đ) *<input name="soTien" value="${p.amount&&p.currency!=='USD'?Math.round(p.amount):''}" required></label>
+      <label>Danh mục<select name="danhMuc">${sel(cats,p.category)}</select></label>
+      <label>Ngày<input type="date" name="ngay" value="${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}"></label>
+      <label>Giờ<input type="time" name="gio" value="${pad(d.getHours())}:${pad(d.getMinutes())}"></label>
+      <label class="full">Nội dung<input name="noiDung" value="${esc(p.desc||'')}"></label>
+      <label>TK / thẻ (4 số cuối)<input name="last4" value="${esc(p.last4||'')}" inputmode="numeric" maxlength="4"></label>
+      <label>Mã giao dịch<input name="ref" value="${esc(p.ref||'')}"></label>
+      <details class="full"><summary>Chữ đọc được từ ảnh</summary><pre class="ocr-txt">${esc(text)}</pre></details></div>
+    <div class="fbtns"><button class="btn-line" value="cancel" formnovalidate>Huỷ</button><button class="btn-lime" value="save">Lưu giao dịch</button></div>`;
+  moneyfy(f);
+}
 function finDialog(kind,row,khach){
   const L=F.data.lists, f=document.getElementById('finForm'), today=(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`})();
   const opts=a=>a.map(x=>`<option>${esc(x)}</option>`).join(''), accSel=`<label>Tài khoản<select name="taiKhoan">${opts(Object.keys(finCalc().acc).length?Object.keys(finCalc().acc):L.accounts)}</select></label>`;
@@ -1335,6 +1396,11 @@ document.getElementById('finForm').addEventListener('submit',async e=>{
   const f=e.target, k=f.dataset.kind, b=f.querySelector('.btn-lime'); b.disabled=true;
   try{
     const v=moneyVals(Object.fromEntries(new FormData(f).entries()),f);
+    if(k==='ocr'){ const body={source:v.src,dir:v.loai,amount:v.soTien,date:v.ngay,time:v.gio,desc:v.noiDung,last4:v.last4,ref:v.ref,cat:v.danhMuc,ocrText:v.ocrText};
+      let r=await call('ingestScreenshot',F.pin,body);
+      if(r.dup){ if(!confirm('Có vẻ giao dịch này đã có rồi:\n'+r.note+'\n\nVẫn thêm giao dịch mới?')){ document.getElementById('fdlg').close(); toast('Không thêm – giao dịch đã có'); return; }
+        r=await call('ingestScreenshot',F.pin,Object.assign(body,{force:true})); }
+      document.getElementById('fdlg').close(); toast(`Đã thêm ${r.id}${r.status!=='Đã xác nhận'?' ('+r.status+')':''}${r.note?' · '+r.note:''}`); await finLoad(); return; }
     if(k.startsWith('tx-')) await call('addTx',F.pin,v);
     else if(k==='edittx'){ const t=F.data.tx.find(x=>x.row===+v.row);
       await call('updateTx',F.pin,Object.assign(v,{id:t['Mã GD']||'',row:+v.row,orig:{'Ngày':t['Ngày'],'Số tiền':t['Số tiền'],'Loại':t['Loại']}})); }
@@ -1442,6 +1508,7 @@ document.addEventListener('click',e=>{
     case 'fhide': F.hide=!F.hide; lsSet('hide',F.hide?'1':'0'); render(); break;
     case 'flock': F.pin=null; F.data=null; render(); break;
     case 'fadd': finDialog(el.dataset.v, +el.dataset.row||0, el.dataset.k); break;
+    case 'ocrpick': { const i=document.getElementById('ocrFile'); i.value=''; i.click(); break; }
     case 'deltx': { const t=F.data.tx.find(x=>x.row===+el.dataset.row); if(!t||!confirm(`Huỷ giao dịch ${t['Loại']} ${money(t['Số tiền'])} ngày ${t['Ngày']}?\n(Dòng vẫn được giữ trong sheet, khôi phục được)`)) break;
       call('deleteTx',F.pin,{id:t['Mã GD']||'',row:t.row,orig:{'Ngày':t['Ngày'],'Số tiền':t['Số tiền'],'Loại':t['Loại']}})
         .then(()=>{document.getElementById('fdlg').close(); toast('Đã huỷ giao dịch (khôi phục được)'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); break; }
@@ -1482,6 +1549,7 @@ document.addEventListener('click',e=>{
   }
 });
 document.addEventListener('change',e=>{ if(e.target.dataset.act==='month'){S.month=e.target.value;render();}
+  if(e.target.id==='ocrFile'&&e.target.files[0]){ ocrRun(e.target.files[0]); return; }
   const rp=e.target.dataset.rp; if(rp){ RP[rp]=e.target.value; render(); }
   if(e.target.dataset.gmint!==undefined){ call('setGmailInterval',F.pin,+e.target.value).then(n=>{toast('Gmail sẽ tự quét mỗi '+n+' phút'); finLoad();}).catch(err=>toast('Lỗi: '+(err.message||err))); } });
 let ffT; document.addEventListener('input',e=>{ const k=e.target.dataset.ff; if(!k) return; FF[k]=e.target.value;
@@ -1620,6 +1688,9 @@ const DEMO=(()=>{const t0=new Date(),f=d=>{const x=new Date(t0);x.setDate(x.getD
     createDeviceToken:()=>({token:'demo'+Math.random().toString(16).slice(2)+Math.random().toString(16).slice(2),url:'#'}),
     revokeDeviceToken:()=>{FD.data.device={hasToken:false}; return true;},
     gmailCheckNow:()=>{FD.data.gmail.checkNowPending=true; return {ok:true};},
+    ingestScreenshot:(p,b)=>{ if(!b.force&&+b.amount===1250000) return {dup:true,note:'Trùng với GDAUTO1 (cùng giao dịch báo qua thông báo)'};
+      const id='GDANH'+Date.now().toString().slice(-5); FD.data.tx.push({row:FD.data.tx.length+2,'Mã GD':id,'Ngày':b.date.split('-').reverse().join('/'),'Giờ':b.time,'Loại':b.dir,'Số tiền':+b.amount,
+        'Danh mục':b.cat,'Tài khoản':b.source,'Đối tượng':b.source,'Ghi chú':b.desc,'Nguồn':b.source+' (ảnh)','Trạng thái':'Đã xác nhận','Loại chi tiết':b.dir}); return {ok:true,id,status:'Đã xác nhận'}; },
     setGmailInterval:(p,n)=>{FD.data.gmail.intervalMin=n; return n;},
     resyncReview:()=>({received:1,created:0,pending:0,review:1,skipped:0,stored:0,dup:0,seen:0,errors:0}),
     ignoreReview:(p,id)=>{FD.data.gmail.review=FD.data.gmail.review.filter(r=>r.id!==id); return true;},
